@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 from jax import Array
+from jax.lax import cond
 from jax.typing import ArrayLike
 
 from nrs.constants import MU, P_SCALING
@@ -16,15 +17,13 @@ def approx_max_roc(y: ArrayLike) -> Array:
     d_g_max = 2 * jnp.sqrt(p / MU)
 
     # singularity detection for d_h_max and d_k_max
-    if jnp.abs(jnp.sqrt(1 - g**2) + f) < 1e-6:
-        d1 = 1e-6 * jnp.sign(jnp.sqrt(1 - g**2) + f)
-    else:
-        d1 = jnp.sqrt(1 - g**2) + f
+    singularity_h = jnp.abs(1 + h**2 + k**2) < 1e-6
+    d1 = cond(singularity_h, 1e-6 * jnp.sign(1 + h**2 + k**2), 1 + h**2 + k**2)
 
-    if jnp.abs(jnp.sqrt(1 - f**2) + g) < 1e-6:
-        d2 = 1e-6 * jnp.sign(jnp.sqrt(1 - f**2) + g)
-    else:
-        d2 = jnp.sqrt(1 - f**2) + g
+    singularity_k = jnp.abs(jnp.sqrt(1 - f**2) + g) < 1e-6
+    d2 = cond(
+        singularity_k, 1e-6 * jnp.sign(jnp.sqrt(1 - f**2) + g), jnp.sqrt(1 - f**2) + g
+    )
 
     d_h_max = 1 / 2 * jnp.sqrt(p / MU) * (1 + h**2 + k**2) / d1
     d_k_max = 1 / 2 * jnp.sqrt(p / MU) * (1 + h**2 + k**2) / d2

@@ -12,7 +12,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [{ name = "Mingde Yin", email = "mdsuper@hotmail.com" }]
-dependencies = ["jax", "diffrax"]
+dependencies = ["jax", "diffrax", "jax-dataclasses"]
 dynamic = ["version"]
 
 [tool.setuptools.packages.find]

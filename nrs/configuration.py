@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Callable
 
 from diffrax import AbstractSolver
 from jax import Array
+from jax_dataclasses import asdict, pytree_dataclass
 
 PROPULSION_MODEL_TYPE = Callable[[float, Array, "SimConfig", float, float], Array]
 # thrust vector as function of (t, y, cfg, alpha, beta) -> Array (3,)
@@ -25,7 +25,7 @@ class DynamicsType(Enum):
     CART = "cart"
 
 
-@dataclass
+@pytree_dataclass(frozen=True)
 class SimConfig:
     y0: Array  # initial state vector, shape (6,)
     y_target: Array  # target state vector, shape (5,)
