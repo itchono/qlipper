@@ -1,8 +1,7 @@
 from jax import Array
 from jax.typing import ArrayLike
-
-from nrs.configuration import SimConfig
-from nrs.utils.converters import steering_to_lvlh
+from qlipper.configuration import SimConfig
+from qlipper.utils.converters import steering_to_lvlh
 
 
 def constant_thrust(

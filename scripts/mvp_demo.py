@@ -1,9 +1,8 @@
 import jax.numpy as jnp
 from diffrax import Dopri8
-
-from nrs.configuration import DynamicsType, SimConfig
-from nrs.sim.propulsion import constant_thrust
-from nrs.steering.q_law import q_law
+from qlipper.configuration import DynamicsType, SimConfig
+from qlipper.sim.propulsion import constant_thrust
+from qlipper.steering.q_law import q_law
 
 sim_case = SimConfig(
     y0=jnp.array([20000e3, 0.5, -0.2, 0.5, 0, 0]),

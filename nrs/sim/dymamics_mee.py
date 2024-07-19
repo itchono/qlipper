@@ -1,9 +1,8 @@
 import jax.numpy as jnp
 from jax import Array
 from jax.typing import ArrayLike
-
-from nrs.configuration import SimConfig
-from nrs.constants import MU, P_SCALING
+from qlipper.configuration import SimConfig
+from qlipper.constants import MU, P_SCALING
 
 
 def gve_coefficients(state: ArrayLike) -> tuple[Array, Array]:

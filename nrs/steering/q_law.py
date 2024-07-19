@@ -2,9 +2,8 @@ import jax.numpy as jnp
 from jax import Array
 from jax.lax import cond
 from jax.typing import ArrayLike
-
-from nrs.constants import MU, P_SCALING
-from nrs.sim.dymamics_mee import gve_coefficients
+from qlipper.constants import MU, P_SCALING
+from qlipper.sim.dymamics_mee import gve_coefficients
 
 
 def approx_max_roc(y: ArrayLike) -> Array:
