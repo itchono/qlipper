@@ -1,6 +1,7 @@
 import jax.numpy as jnp
 from jax import Array
 from jax.typing import ArrayLike
+
 from qlipper.configuration import SimConfig
 from qlipper.constants import MU, P_SCALING
 

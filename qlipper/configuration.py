@@ -20,13 +20,9 @@ PERTURBATION_TYPE = Callable[[float, Array], Array]
 # perturbation as function of state vector -> Array (3,)
 
 
-class DynamicsType(Enum):
-    MEE = "mee"
-    CART = "cart"
-
-
 @pytree_dataclass(frozen=True)
 class SimConfig:
+    name: str  # mission name
     y0: Array  # initial state vector, shape (6,)
     y_target: Array  # target state vector, shape (5,)
     propulsion_model: PROPULSION_MODEL_TYPE  # propulsion model
@@ -38,13 +34,23 @@ class SimConfig:
     w_penalty: float  # penalty weight
     penalty_function: PENALTY_FUNCTION_TYPE  # penalty as function of state vector
     kappa: float  # cone angle parameter
-    dynamics: DynamicsType  # dynamics type
+    dynamics: str  # dynamics type "mee" or "cart"
     perturbations: list[PERTURBATION_TYPE]  # list of perturbation functions
     characteristic_accel: float  # characteristic acceleration (m/s^2)
+    epoch_jd: float  # epoch Julian date
 
-    def _serialize(self) -> dict:
+    def serialize(self) -> dict:
         # replace all functions with their names so that the config can be serialized
         d = asdict(self)
+
+        # (Arrays)
+        for key, value in d.items():
+            if isinstance(value, Array):
+                d[key] = value.tolist()
+
+        # solver
+        solver_name = self.solver.__class__.__name__
+        d["solver"] = solver_name
 
         # propulsion model
         propulsion_model_name = self.propulsion_model.__name__
@@ -65,7 +71,7 @@ class SimConfig:
         return d
 
     @classmethod
-    def _deserialize(cls, d: dict) -> SimConfig:
+    def deserialize(cls, d: dict) -> SimConfig:
         # replace all function names with the actual functions
         d = d.copy()
 
@@ -74,11 +80,3 @@ class SimConfig:
         raise NotImplementedError()
 
         return cls(**d)
-
-    @property
-    def as_dict(self) -> dict:
-        return self._serialize()
-
-    @classmethod
-    def from_dict(cls, d: dict) -> SimConfig:
-        return cls._deserialize(d)

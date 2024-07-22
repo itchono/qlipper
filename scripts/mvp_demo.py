@@ -1,22 +1,31 @@
 import jax.numpy as jnp
 from diffrax import Dopri8
-from qlipper.configuration import DynamicsType, SimConfig
+
+from qlipper.configuration import SimConfig
+from qlipper.run.mission_runner import run_mission
 from qlipper.sim.propulsion import constant_thrust
-from qlipper.steering.q_law import q_law
+from qlipper.steering import trivial_steering
 
 sim_case = SimConfig(
-    y0=jnp.array([20000e3, 0.5, -0.2, 0.5, 0, 0]),
-    y_target=jnp.array([25000e3, 0.2, 0.5, 0, 0.3]),
+    name="demo",
+    y0=jnp.array([20000e3, 0, 0, 0, 0, 0]),
+    y_target=jnp.array([20000e3, 0, 0, 0, 0]),
     propulsion_model=constant_thrust,
-    steering_law=q_law,
-    t_span=(0, 1e8),
+    steering_law=trivial_steering,
+    t_span=(0, 5e3),
     solver=Dopri8(),
     conv_tol=1e-3,
     w_oe=jnp.array([1, 1, 1, 1, 1]),
     w_penalty=0,
     penalty_function=lambda x: 0,
     kappa=jnp.deg2rad(64),
-    dynamics_type=DynamicsType.MEE,
+    dynamics="mee",
     perturbations=[],
     characteristic_accel=0.1,
+    epoch_jd=2451545.0,
 )
+
+
+y, t = run_mission(sim_case)
+
+print(y)
