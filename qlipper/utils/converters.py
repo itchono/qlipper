@@ -5,6 +5,7 @@ from jax.typing import ArrayLike
 from qlipper.constants import MU
 
 
+@jax.jit
 def lvlh_to_steering(dir_lvlh: ArrayLike) -> tuple[float, float]:
     """
     Convert direction vector in LVLH frame to steering angles.
@@ -26,6 +27,7 @@ def lvlh_to_steering(dir_lvlh: ArrayLike) -> tuple[float, float]:
     return alpha, beta
 
 
+@jax.jit
 def steering_to_lvlh(alpha: float, beta: float) -> jax.Array:
     """
     Convert steering angles to direction vector in LVLH frame.
@@ -52,6 +54,7 @@ def steering_to_lvlh(alpha: float, beta: float) -> jax.Array:
     return dir_lvlh
 
 
+@jax.jit
 def mee_to_cartesian(mee: ArrayLike) -> jax.Array:
     """
     Convert modified equinoctial elements to Cartesian elements.
@@ -123,6 +126,7 @@ def mee_to_cartesian(mee: ArrayLike) -> jax.Array:
     return jnp.concatenate([pos, vel])
 
 
+@jax.jit
 def cartesian_to_mee(cart: ArrayLike) -> jax.Array:
     """
     Convert Cartesian elements to modified equinoctial elements.

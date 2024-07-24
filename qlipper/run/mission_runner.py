@@ -7,13 +7,15 @@ from diffrax import ODETerm, SaveAt, diffeqsolve
 from jax import Array
 
 from qlipper.configuration import SimConfig
-from qlipper.constants import P_SCALING
+from qlipper.constants import OUTPUT_DIR, P_SCALING
 from qlipper.sim.dymamics_mee import dyn_mee
 
 
 def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
     """
     Run a qlipper simulation.
+
+    Automatically saves the configuration and results to disk.
 
     Parameters
     ----------
@@ -30,10 +32,10 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
     # Pre-run
 
     # create an identifier for the mission
-    run_id = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    run_id = f"run_{datetime.now().strftime('%Y%m%d_%Hh%Mm%Ss')}"
 
     # create a directory for the mission
-    mission_dir = Path("outputs") / cfg.name / run_id
+    mission_dir = Path(OUTPUT_DIR) / cfg.name / run_id
     mission_dir.mkdir(parents=True)
 
     # save the configuration

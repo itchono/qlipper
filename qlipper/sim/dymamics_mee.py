@@ -1,11 +1,14 @@
+from functools import partial
+
 import jax.numpy as jnp
-from jax import Array
+from jax import Array, jit
 from jax.typing import ArrayLike
 
 from qlipper.configuration import SimConfig
 from qlipper.constants import MU, P_SCALING
 
 
+@jit
 def gve_coefficients(state: ArrayLike) -> tuple[Array, Array]:
     """
     Gauss variational equation coefficients for
@@ -61,6 +64,7 @@ def gve_coefficients(state: ArrayLike) -> tuple[Array, Array]:
     return A, b
 
 
+@jit
 def gve_mee(state: ArrayLike, accel: ArrayLike) -> Array:
     """
     Gauss variational equation for modified equinoctial elements.
