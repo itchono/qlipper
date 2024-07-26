@@ -2,7 +2,7 @@ from jax import vmap
 from jax.typing import ArrayLike
 from matplotlib import pyplot as plt
 
-from qlipper.utils.converters import mee_to_cartesian
+from qlipper.converters import mee_to_cartesian
 
 
 def plot_trajectory_mee(y: ArrayLike):

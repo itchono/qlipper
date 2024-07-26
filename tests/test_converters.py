@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import pytest
 
-from qlipper.utils.converters import cartesian_to_mee, mee_to_cartesian
+from qlipper.converters import cartesian_to_mee, mee_to_cartesian
 
 
 def test_cartesian_to_mee():

@@ -1,8 +1,11 @@
+import numpy as np
 import pytest
+from jplephem.calendar import compute_julian_date
 
 from qlipper.sim.ephemeris import (
     _ensure_ephemeris,
     compute_kernel_at_times,
+    generate_interpolant_arrays,
     path_to_named_string,
     resolve_spk_path,
 )
@@ -44,3 +47,23 @@ def test_multileg_ephemeris(kernel):
     position = compute_kernel_at_times(kernel, 399, 4, [2457061.5])[:, 0]
 
     assert position_ref == pytest.approx(position, rel=1e-6)
+
+
+def test_generating_interpolants():
+    jd_epoch = compute_julian_date(2015, 2, 8)
+
+    t, y = generate_interpolant_arrays(0, 4, jd_epoch, [0, 86400 * 3], 4)
+
+    assert t[0] == 0
+    assert t[-1] == 86400 * 3
+    assert y.shape == (3, 4)
+
+    ref_position = np.array(
+        [
+            [2.057e08, 2.053e08, 2.049e08, 2.045e08],
+            [4.251e07, 4.453e07, 4.654e07, 4.855e07],
+            [1.394e07, 1.487e07, 1.581e07, 1.674e07],
+        ]
+    )
+
+    assert y == pytest.approx(ref_position, rel=5e-4)
