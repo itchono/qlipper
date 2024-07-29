@@ -14,6 +14,8 @@ from qlipper.constants import (
     P_SCALING,
     QLIPPER_BLOCK_LETTERS,
 )
+from qlipper.run.prebake import prebake_ode, prebake_sim_config
+from qlipper.run.recording import temp_log_to_file
 from qlipper.sim.dymamics_mee import dyn_mee
 
 logger = logging.getLogger(__name__)
@@ -47,62 +49,57 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
     mission_dir = Path(OUTPUT_DIR) / cfg.name / run_id
     mission_dir.mkdir(parents=True)
 
-    # log to file
-    log_file = mission_dir / "run.log"
-    # add handler to root logger
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setFormatter(logging.getLogger().handlers[0].formatter)
-    logging.getLogger().addHandler(file_handler)
-
-    logger.info(QLIPPER_BLOCK_LETTERS)
-    logger.info(f"Starting mission {cfg.name} with ID {run_id}")
-
     # save the configuration
     with open(mission_dir / "cfg.json", "w") as f:
         dump(cfg.serialize(), f, indent=4)
 
-    term = ODETerm(dyn_mee)
+    with temp_log_to_file(mission_dir / "run.log"):
+        logger.info(QLIPPER_BLOCK_LETTERS)
+        logger.info(f"Starting mission {cfg.name} with ID {run_id}")
 
-    # preprocess scaling
-    y0 = cfg.y0.at[0].divide(P_SCALING)
+        term = ODETerm(dyn_mee)
 
-    # Run
-    solution = diffeqsolve(
-        term,
-        cfg.solver,
-        t0=cfg.t_span[0],
-        t1=cfg.t_span[1],
-        y0=y0,
-        dt0=1,
-        args=cfg,
-        max_steps=int(1e6),
-        saveat=SaveAt(steps=True),
-    )
+        # preprocess scaling
+        y0 = cfg.y0.at[0].divide(P_SCALING)
 
-    # postprocess -- get rid of NaNs and rescale
-    valid_idx = jnp.isfinite(solution.ys[:, 0])
-    sol_y = solution.ys.at[:, 0].mul(P_SCALING)[valid_idx]
-    sol_t = solution.ts[valid_idx]
+        ode_args = prebake_sim_config(cfg)
 
-    # Post-run
-    run_end = datetime.now()
-    run_duration = run_end - run_start
-    logger.info(f"Mission {cfg.name} with ID {run_id} completed in {run_duration}")
+        # Run
+        solution = diffeqsolve(
+            term,
+            cfg.solver,
+            t0=cfg.t_span[0],
+            t1=cfg.t_span[1],
+            y0=y0,
+            dt0=1,
+            args=ode_args,
+            max_steps=int(1e6),
+            saveat=SaveAt(steps=True),
+        )
 
-    match solution.result:
-        case RESULTS.event_occurred:
-            logger.info(CONVERGED_BLOCK_LETTERS)
-        case RESULTS.successful:
-            logger.info("NOT CONVERGED - reached end of integration interval")
-        case _:
-            logger.warning(f"NOT CONVERGED - {solution.result}")
+        # postprocess -- get rid of NaNs and rescale
+        valid_idx = jnp.isfinite(solution.ys[:, 0])
+        sol_y = solution.ys.at[:, 0].mul(P_SCALING)[valid_idx]
+        sol_t = solution.ts[valid_idx]
 
-    # Post-run saving of results
-    with open(mission_dir / "vars.npy", "wb") as f:
-        jnp.save(f, sol_y)
-        jnp.save(f, sol_t)
+        # Post-run
+        run_end = datetime.now()
+        run_duration = run_end - run_start
+        logger.info(f"Mission {cfg.name} with ID {run_id} completed in {run_duration}")
 
-    # remove file handler
-    logging.getLogger().removeHandler(file_handler)
+        match solution.result:
+            case RESULTS.event_occurred:
+                logger.info(CONVERGED_BLOCK_LETTERS)
+            case RESULTS.successful:
+                logger.info("NOT CONVERGED - reached end of integration interval")
+            case _:
+                logger.warning(f"NOT CONVERGED - {solution.result}")
+
+        # Post-run saving of results
+        with open(mission_dir / "vars.npy", "wb") as f:
+            jnp.save(f, sol_y)
+            jnp.save(f, sol_t)
+
+        logger.info(f"Run variables saved to {mission_dir}")
 
     return sol_y, sol_t

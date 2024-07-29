@@ -6,6 +6,7 @@ from jax.typing import ArrayLike
 
 from qlipper.configuration import SimConfig
 from qlipper.constants import MU, P_SCALING
+from qlipper.run.prebake import Params
 
 
 @jit
@@ -91,7 +92,8 @@ def gve_mee(state: ArrayLike, accel: ArrayLike) -> Array:
     return dstate_dt
 
 
-def dyn_mee(t: float, y: ArrayLike, cfg: SimConfig) -> Array:
+@partial(jit, static_argnums=(3,))
+def dyn_mee(t: float, y: ArrayLike, params: Params, cfg: SimConfig) -> Array:
     """
     Top level dynamics function for modified equinoctial elements.
 
@@ -101,7 +103,7 @@ def dyn_mee(t: float, y: ArrayLike, cfg: SimConfig) -> Array:
         Time since epoch (s).
     y : ArrayLike
         State vector in modified equinoctial elements.
-    cfg : SimConfig
+    icfg : SimInternalConfig
         Configuration object.
 
     Returns
@@ -123,10 +125,10 @@ def dyn_mee(t: float, y: ArrayLike, cfg: SimConfig) -> Array:
     y = y.at[0].mul(P_SCALING)
 
     # Control
-    alpha, beta = cfg.steering_law(t, y, cfg)
+    alpha, beta = cfg.steering_law(t, y, params)
 
     # Acceleration from propulsion
-    acceleration = cfg.propulsion_model(t, y, cfg, alpha, beta)
+    acceleration = cfg.propulsion_model(t, y, params, alpha, beta)
 
     # Perturbations
     for perturbation in cfg.perturbations:

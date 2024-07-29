@@ -2,11 +2,28 @@ import jax.numpy as jnp
 from jax import Array
 from jax.lax import cond
 from jax.typing import ArrayLike
+
 from qlipper.constants import MU, P_SCALING
+from qlipper.sim import Params
 from qlipper.sim.dymamics_mee import gve_coefficients
 
 
-def approx_max_roc(y: ArrayLike) -> Array:
+def approx_max_roc(y: ArrayLike, params: Params) -> Array:
+    """
+    Approximate the maximum rate of change for each element.
+
+    Parameters
+    ----------
+    y : ArrayLike
+        Current state vector.
+    params : Params
+        Simulation parameters.
+
+    Returns
+    -------
+    d_oe_max : Array
+        Maximum rate of change for each element.
+    """
     p, f, g, h, k, L = y
 
     q = 1 + f * jnp.cos(L) + g * jnp.sin(L)
@@ -27,11 +44,13 @@ def approx_max_roc(y: ArrayLike) -> Array:
     d_h_max = 1 / 2 * jnp.sqrt(p / MU) * (1 + h**2 + k**2) / d1
     d_k_max = 1 / 2 * jnp.sqrt(p / MU) * (1 + h**2 + k**2) / d2
 
-    # TODO missing characteristic thrust factor
-    return jnp.array([d_p_max, d_f_max, d_g_max, d_h_max, d_k_max])
+    return (
+        jnp.array([d_p_max, d_f_max, d_g_max, d_h_max, d_k_max])
+        / params.characteristic_accel
+    )
 
 
-def q_law(y: ArrayLike, target: ArrayLike, w_oe: ArrayLike) -> tuple[float, float]:
+def q_law(_: float, y: ArrayLike, params: Params) -> tuple[float, float]:
     """
     Q-Law.
 
@@ -39,10 +58,8 @@ def q_law(y: ArrayLike, target: ArrayLike, w_oe: ArrayLike) -> tuple[float, floa
     ----------
     y : ArrayLike
         Current state vector.
-    target : ArrayLike
-        Target state vector.
-    w_oe : ArrayLike
-        Weighting factors for the OE states.
+    params : Params
+        Simulation parameters.
 
     Returns
     -------
@@ -51,8 +68,11 @@ def q_law(y: ArrayLike, target: ArrayLike, w_oe: ArrayLike) -> tuple[float, floa
     beta : float
         Steering angle.
     """
+    target = params.y_target
+    w_oe = params.w_oe
+
     S = jnp.array([1 / P_SCALING, 1, 1, 1, 1])
-    d_oe_max = approx_max_roc(y)
+    d_oe_max = approx_max_roc(y, params)
 
     oe = y[:5]
     oe_hat = target

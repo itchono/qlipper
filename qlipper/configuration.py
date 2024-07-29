@@ -1,22 +1,21 @@
 from __future__ import annotations
 
-from enum import Enum
-from typing import Callable
+from typing import Callable, NamedTuple
 
 from diffrax import AbstractSolver
 from jax import Array
 from jax_dataclasses import asdict, pytree_dataclass
 
-PROPULSION_MODEL_TYPE = Callable[[float, Array, "SimConfig", float, float], Array]
-# thrust vector as function of (t, y, cfg, alpha, beta) -> Array (3,)
+PropulsionModel = Callable[[float, Array, NamedTuple, float, float], Array]
+# thrust vector as function of (t, y, par, alpha, beta) -> Array (3,)
 
-STEERING_LAW_TYPE = Callable[[float, Array, "SimConfig"], tuple[float, float]]
-# steering control as function of (t, y, cfg) -> (alpha, beta)
+SteeringLaw = Callable[[float, Array, NamedTuple], tuple[float, float]]
+# steering control as function of (t, y, par) -> (alpha, beta)
 
-PENALTY_FUNCTION_TYPE = Callable[[Array], float]
+Penalty = Callable[[Array], float]
 # penalty function as function of state vector -> float
 
-PERTURBATION_TYPE = Callable[[float, Array], Array]
+Perturbation = Callable[[float, Array], Array]
 # perturbation as function of state vector -> Array (3,)
 
 
@@ -25,17 +24,17 @@ class SimConfig:
     name: str  # mission name
     y0: Array  # initial state vector, shape (6,)
     y_target: Array  # target state vector, shape (5,)
-    propulsion_model: PROPULSION_MODEL_TYPE  # propulsion model
-    steering_law: STEERING_LAW_TYPE  # steering law
+    propulsion_model: PropulsionModel  # propulsion model
+    steering_law: SteeringLaw  # steering law
     t_span: tuple[float, float]  # (s)
     solver: AbstractSolver  # solver
     conv_tol: float  # convergence tolerance
     w_oe: Array  # guidance weights, shape (5,)
     w_penalty: float  # penalty weight
-    penalty_function: PENALTY_FUNCTION_TYPE  # penalty as function of state vector
+    penalty_function: Penalty  # penalty as function of state vector
     kappa: float  # cone angle parameter
     dynamics: str  # dynamics type "mee" or "cart"
-    perturbations: list[PERTURBATION_TYPE]  # list of perturbation functions
+    perturbations: list[Perturbation]  # list of perturbation functions
     characteristic_accel: float  # characteristic acceleration (m/s^2)
     epoch_jd: float  # epoch Julian date
 
