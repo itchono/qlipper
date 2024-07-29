@@ -218,13 +218,13 @@ def generate_interpolant_arrays(
     t_samples = np.linspace(*t_span, num_samples)
     jd_samples = epoch + t_samples / 86400
 
-    y = compute_kernel_at_times(kernel, observer, target, jd_samples)
+    position_samples = compute_kernel_at_times(kernel, observer, target, jd_samples)
 
     logger.info(
         f"Generated interpolant arrays for observer {observer} -> target {target}"
     )
 
-    return t_samples, y
+    return t_samples, position_samples
 
 
 def interp_position(
@@ -252,4 +252,4 @@ def interp_position(
     ), "t_samples and y_samples must have the same length"
     assert y_samples.shape[0] == 3, "y_samples must be a 3xN array"
 
-    return jnp.interp(t_eval, t_samples, y_samples, axis=1)
+    return jnp.stack([jnp.interp(t_eval, t_samples, y_samples[i, :]) for i in range(3)])

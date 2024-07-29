@@ -26,7 +26,7 @@ def prebake_sim_config(cfg: SimConfig) -> Params:
     # TODO: either add a heuristic or make this a parameter
     NUM_SAMPLES = 100
 
-    ephem_t_sample, ephem_y_sample = generate_interpolant_arrays(
+    ephem_t_sample, ephem_r_sample = generate_interpolant_arrays(
         earth, sun, cfg.epoch_jd, cfg.t_span, NUM_SAMPLES
     )
 
@@ -39,7 +39,7 @@ def prebake_sim_config(cfg: SimConfig) -> Params:
         characteristic_accel=cfg.characteristic_accel,
         epoch_jd=cfg.epoch_jd,
         ephem_t_sample=ephem_t_sample,
-        ephem_y_sample=ephem_y_sample,
+        ephem_r_sample=ephem_r_sample,
     )
 
 

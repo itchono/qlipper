@@ -18,4 +18,4 @@ class Params(NamedTuple):
     characteristic_accel: float
     epoch_jd: float
     ephem_t_sample: float
-    ephem_y_sample: Array
+    ephem_r_sample: Array

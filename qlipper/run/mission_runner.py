@@ -21,7 +21,7 @@ from qlipper.sim.dymamics_mee import dyn_mee
 logger = logging.getLogger(__name__)
 
 
-def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
+def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
     """
     Run a qlipper simulation.
 
@@ -85,6 +85,7 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
         run_end = datetime.now()
         run_duration = run_end - run_start
         logger.info(f"Mission {cfg.name} with ID {run_id} completed in {run_duration}")
+        logger.info(f"Stats: {solution.stats}")
 
         match solution.result:
             case RESULTS.event_occurred:
@@ -101,4 +102,4 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
 
         logger.info(f"Run variables saved to {mission_dir.resolve()}")
 
-    return sol_y, sol_t
+    return run_id, sol_y, sol_t
