@@ -2,7 +2,7 @@ import logging
 from functools import partial
 from typing import Any, Callable
 
-from jax import Array
+from jax import Array, jit
 
 from qlipper.configuration import SimConfig
 from qlipper.sim import Params
@@ -44,12 +44,24 @@ def prebake_sim_config(cfg: SimConfig) -> Params:
 
 
 def prebake_ode(
-    sim_config: SimConfig, ode: Callable[[float, Array, Any, Any], Array]
+    ode: Callable[[float, Array, Any, Any], Array], cfg: SimConfig
 ) -> Callable[[float, Array, Any], Array]:
     """
     Bake a version of the ode so that it can be JIT-compiled
+
+    Parameters
+    ----------
+    ode : Callable[[float, Array, Any, Any], Array]
+        The original ODE function
+    cfg : SimConfig
+        The simulation configuration
+
+    Returns
+    -------
+    baked_ode : Callable[[float, Array, Any], Array]
+        The baked ODE function
     """
 
-    baked_ode = partial(ode, sim_config=sim_config)
+    baked_ode = jit(partial(ode, cfg=cfg))
 
     return baked_ode

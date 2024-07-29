@@ -1,5 +1,3 @@
-from functools import partial
-
 import jax.numpy as jnp
 from jax import Array, jit
 from jax.typing import ArrayLike
@@ -92,7 +90,6 @@ def gve_mee(state: ArrayLike, accel: ArrayLike) -> Array:
     return dstate_dt
 
 
-@partial(jit, static_argnums=(3,))
 def dyn_mee(t: float, y: ArrayLike, params: Params, cfg: SimConfig) -> Array:
     """
     Top level dynamics function for modified equinoctial elements.

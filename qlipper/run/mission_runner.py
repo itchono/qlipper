@@ -57,19 +57,18 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
         logger.info(QLIPPER_BLOCK_LETTERS)
         logger.info(f"Starting mission {cfg.name} with ID {run_id}")
 
-        term = ODETerm(dyn_mee)
-
-        # preprocess scaling
-        y0 = cfg.y0.at[0].divide(P_SCALING)
-
+        # prebake
+        term = ODETerm(prebake_ode(dyn_mee, cfg))
         ode_args = prebake_sim_config(cfg)
+
+        # preprocessing
+        y0 = cfg.y0.at[0].divide(P_SCALING)  # rescale initial state
 
         # Run
         solution = diffeqsolve(
             term,
             cfg.solver,
-            t0=cfg.t_span[0],
-            t1=cfg.t_span[1],
+            *cfg.t_span,
             y0=y0,
             dt0=1,
             args=ode_args,
@@ -77,7 +76,7 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
             saveat=SaveAt(steps=True),
         )
 
-        # postprocess -- get rid of NaNs and rescale
+        # postprocessing
         valid_idx = jnp.isfinite(solution.ys[:, 0])
         sol_y = solution.ys.at[:, 0].mul(P_SCALING)[valid_idx]
         sol_t = solution.ts[valid_idx]
@@ -100,6 +99,6 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
             jnp.save(f, sol_y)
             jnp.save(f, sol_t)
 
-        logger.info(f"Run variables saved to {mission_dir}")
+        logger.info(f"Run variables saved to {mission_dir.resolve()}")
 
     return sol_y, sol_t
