@@ -1,10 +1,20 @@
+from pathlib import Path
+from typing import Any
+
 from jax.typing import ArrayLike
 from matplotlib import pyplot as plt
 
 from qlipper.configuration import SimConfig
 
 
-def plot_elements_mee(t: ArrayLike, y: ArrayLike, cfg: SimConfig):
+def plot_elements_mee(
+    t: ArrayLike,
+    y: ArrayLike,
+    cfg: SimConfig,
+    save_path: Path | None = None,
+    save_kwargs: dict[str, Any] = {},
+    show: bool = False,
+) -> None:
     """
     Plot the modified equinoctial elements over time.
     """
@@ -28,6 +38,8 @@ def plot_elements_mee(t: ArrayLike, y: ArrayLike, cfg: SimConfig):
 
     axs[2].set_xlabel("Time (jd)")
 
-    plt.savefig("elements.pdf", bbox_inches="tight")
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
 
-    plt.show()
+    if show:
+        plt.show()

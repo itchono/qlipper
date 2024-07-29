@@ -34,11 +34,15 @@ def approx_max_roc(y: ArrayLike, params: Params) -> Array:
 
     # singularity detection for d_h_max and d_k_max
     singularity_h = jnp.abs(1 + h**2 + k**2) < 1e-6
-    d1 = cond(singularity_h, 1e-6 * jnp.sign(1 + h**2 + k**2), 1 + h**2 + k**2)
+    d1 = cond(
+        singularity_h, lambda: 1e-6 * jnp.sign(1 + h**2 + k**2), lambda: 1 + h**2 + k**2
+    )
 
     singularity_k = jnp.abs(jnp.sqrt(1 - f**2) + g) < 1e-6
     d2 = cond(
-        singularity_k, 1e-6 * jnp.sign(jnp.sqrt(1 - f**2) + g), jnp.sqrt(1 - f**2) + g
+        singularity_k,
+        lambda: 1e-6 * jnp.sign(jnp.sqrt(1 - f**2) + g),
+        lambda: jnp.sqrt(1 - f**2) + g,
     )
 
     d_h_max = 1 / 2 * jnp.sqrt(p / MU) * (1 + h**2 + k**2) / d1

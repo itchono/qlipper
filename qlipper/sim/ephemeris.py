@@ -5,7 +5,7 @@ from pathlib import Path
 
 import jax.numpy as jnp
 import numpy as np
-from jax import Array
+from jax import Array, jit
 from jax.typing import ArrayLike
 from jplephem.names import target_name_pairs, target_names
 from jplephem.spk import SPK, Segment
@@ -227,6 +227,7 @@ def generate_interpolant_arrays(
     return t_samples, position_samples
 
 
+@jit
 def interp_position(
     t_eval: ArrayLike, t_samples: ArrayLike, y_samples: ArrayLike
 ) -> Array:
@@ -247,9 +248,5 @@ def interp_position(
     Array
         The interpolated position vectors at the evaluation times
     """
-    assert (
-        len(t_samples) == y_samples.shape[1]
-    ), "t_samples and y_samples must have the same length"
-    assert y_samples.shape[0] == 3, "y_samples must be a 3xN array"
 
     return jnp.stack([jnp.interp(t_eval, t_samples, y_samples[i, :]) for i in range(3)])
