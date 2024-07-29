@@ -1,12 +1,13 @@
-from jax import Array
+from jax import Array, jit
 from jax.typing import ArrayLike
 
-from qlipper.configuration import SimConfig
 from qlipper.converters import steering_to_lvlh
+from qlipper.sim import Params
 
 
+@jit
 def constant_thrust(
-    t: float, y: ArrayLike, cfg: SimConfig, alpha: float, beta: float
+    t: float, y: ArrayLike, params: Params, alpha: float, beta: float
 ) -> Array:
     """
     Constant thrust model.
@@ -17,8 +18,8 @@ def constant_thrust(
         Time since epoch (s).
     y : ArrayLike
         State vector in modified equinoctial elements.
-    cfg : SimConfig
-        Configuration object.
+    params : Params
+        Sim parameters
     alpha : float
         Steering angle in the y-x plane [rad].
     beta : float
@@ -31,4 +32,4 @@ def constant_thrust(
     """
     sc_dir_lvlh = steering_to_lvlh(alpha, beta)
 
-    return cfg.characteristic_accel * sc_dir_lvlh
+    return params.characteristic_accel * sc_dir_lvlh

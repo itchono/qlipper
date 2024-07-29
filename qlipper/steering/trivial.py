@@ -1,9 +1,9 @@
 from jax.typing import ArrayLike
 
+from qlipper.sim import Params
 
-def trivial_steering(
-    y: ArrayLike, target: ArrayLike, w_oe: ArrayLike
-) -> tuple[float, float]:
+
+def trivial_steering(t: float, y: ArrayLike, params: Params) -> tuple[float, float]:
     """
     Points the spacecraft prograde.
     """
