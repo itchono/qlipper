@@ -89,3 +89,8 @@ class SimConfig:
         d["w_oe"] = jnp.array(d["w_oe"], dtype=jnp.float64)
 
         return cls(**d)
+
+    @classmethod
+    def from_file(cls, path: str) -> SimConfig:
+        with open(path, "r") as f:
+            return cls.deserialize(f.read())

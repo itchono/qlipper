@@ -1,10 +1,10 @@
 import logging
 from datetime import datetime
-from json import dump
 from pathlib import Path
 
 import jax.numpy as jnp
-from diffrax import RESULTS, Dopri8, ODETerm, PIDController, SaveAt, diffeqsolve
+import optimistix as optx
+from diffrax import RESULTS, Dopri8, Event, ODETerm, PIDController, SaveAt, diffeqsolve
 from jax import Array
 
 from qlipper.configuration import SimConfig
@@ -14,7 +14,12 @@ from qlipper.constants import (
     P_SCALING,
     QLIPPER_BLOCK_LETTERS,
 )
-from qlipper.run.prebake import prebake_ode, prebake_sim_config
+from qlipper.run.prebake import (
+    norm_loss,
+    prebake_ode,
+    prebake_sim_config,
+    termination_condition,
+)
 from qlipper.run.recording import temp_log_to_file
 from qlipper.sim.dymamics_mee import dyn_mee
 
@@ -60,6 +65,7 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
         # prebake
         term = ODETerm(prebake_ode(dyn_mee, cfg))
         ode_args = prebake_sim_config(cfg)
+        termination_event = Event(termination_condition)  # TODO: get working
 
         # preprocessing
         y0 = cfg.y0.at[0].divide(P_SCALING)  # rescale initial state
@@ -72,8 +78,9 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
             y0=y0,
             dt0=None,
             args=ode_args,
-            max_steps=int(1e6),
-            stepsize_controller=PIDController(rtol=1e-8, atol=1e-8),
+            max_steps=int(1e7),
+            stepsize_controller=PIDController(rtol=1e-7, atol=1e-7),
+            event=termination_event,
             saveat=SaveAt(steps=True),
         )
 
@@ -86,6 +93,7 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
         run_end = datetime.now()
         run_duration = run_end - run_start
         logger.info(f"Mission {cfg.name} with ID {run_id} completed in {run_duration}")
+        logger.info(f"Final Error: {norm_loss(sol_y[-1], cfg.y_target, cfg.w_oe)}")
         logger.info(
             "Stats:\n"
             + "\n".join([f"{s_k}: {s_v}" for s_k, s_v in solution.stats.items()])

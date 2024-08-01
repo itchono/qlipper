@@ -8,6 +8,7 @@ from jax import Array, jit
 from qlipper.configuration import SimConfig
 from qlipper.sim import Params
 from qlipper.sim.ephemeris import generate_interpolant_arrays, lookup_body_id
+from qlipper.sim.loss import norm_loss
 from qlipper.sim.propulsion import PROPULSION_MODELS
 from qlipper.steering import STEERING_LAWS
 
@@ -82,3 +83,12 @@ def prebake_ode(
     )
 
     return baked_ode
+
+
+def termination_condition(t: float, y: Array, args: Params, **kwargs) -> bool:
+    """
+    Termination condition for the ODE solver.
+    """
+    # Check if the guidance loss is below the convergence tolerance
+    loss = norm_loss(y, args.y_target, args.w_oe)
+    return loss < args.conv_tol

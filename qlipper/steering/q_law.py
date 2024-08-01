@@ -78,15 +78,14 @@ def q_law(_: float, y: ArrayLike, params: Params) -> tuple[float, float]:
     S = jnp.array([1 / P_SCALING, 1, 1, 1, 1])
     d_oe_max = approx_max_roc(y, params)
 
+    A, _ = gve_coefficients(y)
+
     oe = y[:5]
     oe_hat = target
 
-    A, _ = gve_coefficients(oe)
-
     Xi_E = 2 * (oe - oe_hat) / d_oe_max
 
-    A: Array = A.at[:5, :]
-    D = A.T @ (w_oe * S * Xi_E)
+    D = A[:5, :].T @ (w_oe * S * Xi_E)
 
     alpha = jnp.atan2(-D[0], -D[1])
     beta = jnp.atan2(-D[2], jnp.linalg.norm(D[:2]))
