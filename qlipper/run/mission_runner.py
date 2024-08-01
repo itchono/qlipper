@@ -4,7 +4,7 @@ from json import dump
 from pathlib import Path
 
 import jax.numpy as jnp
-from diffrax import RESULTS, ODETerm, SaveAt, diffeqsolve
+from diffrax import RESULTS, Dopri8, ODETerm, PIDController, SaveAt, diffeqsolve
 from jax import Array
 
 from qlipper.configuration import SimConfig
@@ -51,7 +51,7 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
 
     # save the configuration
     with open(mission_dir / "cfg.json", "w") as f:
-        dump(cfg.serialize(), f, indent=4)
+        f.write(cfg.serialize())
 
     with temp_log_to_file(mission_dir / "run.log"):
         logger.info(QLIPPER_BLOCK_LETTERS)
@@ -67,12 +67,13 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
         # Run
         solution = diffeqsolve(
             term,
-            cfg.solver,
+            Dopri8(),
             *cfg.t_span,
             y0=y0,
-            dt0=1,
+            dt0=None,
             args=ode_args,
             max_steps=int(1e6),
+            stepsize_controller=PIDController(rtol=1e-8, atol=1e-8),
             saveat=SaveAt(steps=True),
         )
 
@@ -85,7 +86,10 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
         run_end = datetime.now()
         run_duration = run_end - run_start
         logger.info(f"Mission {cfg.name} with ID {run_id} completed in {run_duration}")
-        logger.info(f"Stats: {solution.stats}")
+        logger.info(
+            "Stats:\n"
+            + "\n".join([f"{s_k}: {s_v}" for s_k, s_v in solution.stats.items()])
+        )
 
         match solution.result:
             case RESULTS.event_occurred:

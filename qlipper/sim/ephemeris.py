@@ -225,28 +225,3 @@ def generate_interpolant_arrays(
     )
 
     return t_samples, position_samples
-
-
-@jit
-def interp_position(
-    t_eval: ArrayLike, t_samples: ArrayLike, y_samples: ArrayLike
-) -> Array:
-    """
-    Interpolate a position vector at given times
-
-    Parameters
-    ----------
-    t_eval : ArrayLike
-        The times to evaluate the position at
-    t_samples : ArrayLike
-        The times of the samples
-    y_samples : ArrayLike
-        The position vectors at the samples
-
-    Returns
-    -------
-    Array
-        The interpolated position vectors at the evaluation times
-    """
-
-    return jnp.stack([jnp.interp(t_eval, t_samples, y_samples[i, :]) for i in range(3)])

@@ -1,5 +1,4 @@
 from datetime import datetime
-from json import dump
 from pathlib import Path
 
 from jax.typing import ArrayLike
@@ -35,7 +34,7 @@ def postprocess_run(t: ArrayLike, y: ArrayLike, cfg: SimConfig) -> None:
 
     # save the configuration
     with open(save_dir / "cfg.json", "w") as f:
-        dump(cfg.serialize(), f, indent=4)
+        f.write(cfg.serialize())
 
     plot_trajectory_mee(y, save_path=save_dir / "trajectory.pdf", show=False)
     plot_elements_mee(t, y, cfg, save_path=save_dir / "elements.pdf", show=False)

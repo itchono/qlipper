@@ -4,7 +4,6 @@ from jax.typing import ArrayLike
 
 from qlipper.converters import mee_to_cartesian, rot_inertial_lvlh, steering_to_lvlh
 from qlipper.sim import Params
-from qlipper.sim.ephemeris import interp_position
 
 
 @jit
@@ -38,7 +37,9 @@ def constant_thrust(
 
 
 @jit
-def ideal_solar_sail(t: float, y: ArrayLike, params: Params, alpha: float, beta: float):
+def ideal_solar_sail(
+    t: float, y: ArrayLike, params: Params, alpha: float, beta: float
+) -> Array:
     """
     Ideal solar sail model.
 
@@ -49,7 +50,7 @@ def ideal_solar_sail(t: float, y: ArrayLike, params: Params, alpha: float, beta:
 
     sc_dir_lvlh = steering_to_lvlh(alpha, beta)
     sc_dir_i = rot_inertial_lvlh(y) @ sc_dir_lvlh
-    r_sun_i = interp_position(t, params.ephem_t_sample, params.ephem_r_sample)
+    r_sun_i = params.sun_ephem.evaluate(t)
 
     r_rel_sun_i = r_sun_i - r_spacecraft_i
 
@@ -61,3 +62,9 @@ def ideal_solar_sail(t: float, y: ArrayLike, params: Params, alpha: float, beta:
     )
 
     return acc_lvlh
+
+
+PROPULSION_MODELS = {
+    "constant_thrust": constant_thrust,
+    "ideal_solar_sail": ideal_solar_sail,
+}
