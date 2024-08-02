@@ -15,7 +15,7 @@ sim_case = SimConfig(
     w_oe=jnp.array([1, 1, 1, 1, 1]),
     w_penalty=0,
     penalty_function="",
-    kappa=jnp.deg2rad(64),
+    kappa=64,
     dynamics="mee",
     perturbations=[],
     characteristic_accel=0.01,
@@ -23,5 +23,5 @@ sim_case = SimConfig(
 )
 
 
-y, t = run_mission(sim_case)
-postprocess_run(t, y, sim_case)
+run_id, t, y = run_mission(sim_case)
+postprocess_run(run_id, t, y, sim_case)

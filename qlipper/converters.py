@@ -174,6 +174,7 @@ def cartesian_to_mee(cart: ArrayLike) -> jax.Array:
     return jnp.array([p, f, g, h, k, L])
 
 
+@jax.jit
 def rot_inertial_lvlh(mee: ArrayLike) -> jax.Array:
     """
     Generates the rotation matrix C_IO rotating vectors from the lvlh frame to the inertial frame.
@@ -193,5 +194,6 @@ def rot_inertial_lvlh(mee: ArrayLike) -> jax.Array:
     return jnp.column_stack((pos_unit, jnp.cross(h_normed, pos_unit), h_normed))
 
 
+@jax.jit
 def rot_lvlh_inertial(mee: ArrayLike) -> jax.Array:
     return rot_inertial_lvlh(mee).T

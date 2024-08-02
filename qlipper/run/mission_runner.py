@@ -3,8 +3,15 @@ from datetime import datetime
 from pathlib import Path
 
 import jax.numpy as jnp
-import optimistix as optx
-from diffrax import RESULTS, Dopri8, Event, ODETerm, PIDController, SaveAt, diffeqsolve
+from diffrax import (
+    RESULTS,
+    Event,
+    ODETerm,
+    PIDController,
+    SaveAt,
+    Tsit5,
+    diffeqsolve,
+)
 from jax import Array
 
 from qlipper.configuration import SimConfig
@@ -26,7 +33,7 @@ from qlipper.sim.dymamics_mee import dyn_mee
 logger = logging.getLogger(__name__)
 
 
-def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
+def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
     """
     Run a qlipper simulation.
 
@@ -39,10 +46,12 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
 
     Returns
     -------
-    y : Array, shape (6, N)
-        State vector at the end of the simulation.
+    run_id : str
+        Unique identifier for the mission
     t : Array, shape (N,)
         Time vector in seconds elapsed.
+    y : Array, shape (N, 6)
+        State vector at the end of the simulation.
     """
     # Pre-run
     run_start = datetime.now()
@@ -59,27 +68,29 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
         f.write(cfg.serialize())
 
     with temp_log_to_file(mission_dir / "run.log"):
-        logger.info(QLIPPER_BLOCK_LETTERS)
         logger.info(f"Starting mission {cfg.name} with ID {run_id}")
 
         # prebake
         term = ODETerm(prebake_ode(dyn_mee, cfg))
         ode_args = prebake_sim_config(cfg)
-        termination_event = Event(termination_condition)  # TODO: get working
+        termination_event = Event([termination_condition])  # TODO: get working
 
         # preprocessing
         y0 = cfg.y0.at[0].divide(P_SCALING)  # rescale initial state
 
         # Run
+        logger.info(QLIPPER_BLOCK_LETTERS)
         solution = diffeqsolve(
             term,
-            Dopri8(),
+            Tsit5(),
             *cfg.t_span,
             y0=y0,
             dt0=None,
             args=ode_args,
-            max_steps=int(1e7),
-            stepsize_controller=PIDController(rtol=1e-7, atol=1e-7),
+            max_steps=int(1e6),
+            stepsize_controller=PIDController(
+                rtol=1e-6, atol=1e-7, pcoeff=0.3, icoeff=0.3, dcoeff=0
+            ),
             event=termination_event,
             saveat=SaveAt(steps=True),
         )
@@ -108,10 +119,9 @@ def run_mission(cfg: SimConfig) -> tuple[Array, Array]:
                 logger.warning(f"NOT CONVERGED - {solution.result}")
 
         # Post-run saving of results
-        with open(mission_dir / "vars.npy", "wb") as f:
-            jnp.save(f, sol_y)
-            jnp.save(f, sol_t)
+        with open(mission_dir / "vars.npz", "wb") as f:
+            jnp.savez(f, y=sol_y, t=sol_t)
 
         logger.info(f"Run variables saved to {mission_dir.resolve()}")
 
-    return sol_y, sol_t
+    return run_id, sol_t, sol_y

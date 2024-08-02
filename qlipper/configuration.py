@@ -44,7 +44,7 @@ class SimConfig:
     penalty_function : str
         Penalty function.
     kappa : float
-        Cone angle parameter.
+        Cone angle parameter (degrees).
     dynamics : str
         Dynamics type.
     perturbations : list[str]

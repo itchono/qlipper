@@ -105,7 +105,9 @@ def path_to_named_string(path: list[int]) -> str:
     str
         The human-readable string
     """
-    return " -> ".join([target_names[body_id].title() for body_id in path])
+    return " -> ".join(
+        [f"{target_names[body_id].title()} ({body_id})" for body_id in path]
+    )
 
 
 def compute_kernel_at_times(
@@ -212,16 +214,12 @@ def generate_interpolant_arrays(
 
     # log compute path
     path = resolve_spk_path(kernel, observer, target)
-    logger.info(f"Resolved SPICE kernel compute path: {path_to_named_string(path)}")
+    logger.info(f"Ephemeris compute path: {path_to_named_string(path)}")
 
     # have to use numpy here because jplephem mutates the input
     t_samples = np.linspace(*t_span, num_samples)
     jd_samples = epoch + t_samples / 86400
 
     position_samples = compute_kernel_at_times(kernel, observer, target, jd_samples)
-
-    logger.info(
-        f"Generated interpolant arrays for observer {observer} -> target {target}"
-    )
 
     return t_samples, position_samples

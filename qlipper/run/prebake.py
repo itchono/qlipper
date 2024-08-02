@@ -2,6 +2,7 @@ import logging
 from functools import partial
 from typing import Any, Callable
 
+import jax.numpy as jnp
 from diffrax import CubicInterpolation, backward_hermite_coefficients
 from jax import Array, jit
 
@@ -44,7 +45,7 @@ def prebake_sim_config(cfg: SimConfig) -> Params:
         conv_tol=cfg.conv_tol,
         w_oe=cfg.w_oe,
         w_penalty=cfg.w_penalty,
-        kappa=cfg.kappa,
+        kappa=jnp.deg2rad(cfg.kappa),
         characteristic_accel=cfg.characteristic_accel,
         epoch_jd=cfg.epoch_jd,
         sun_ephem=ephem_interpolant,

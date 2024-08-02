@@ -10,3 +10,6 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
     level=logging.INFO,
 )
+
+# disable jax XLA bridge logger
+logging.getLogger("jax._src.xla_bridge").setLevel(logging.ERROR)
