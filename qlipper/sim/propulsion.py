@@ -56,8 +56,7 @@ def ideal_solar_sail(
     sunlight_dir_i = -r_rel_sun_i / jnp.linalg.norm(r_rel_sun_i)
     c_cone_ang = sc_dir_i @ sunlight_dir_i
 
-    # eclipsed = simple_eclipse(t, y, params)
-    eclipsed = False
+    eclipsed = simple_eclipse(t, y, params)
 
     acc_lvlh = (
         params.characteristic_accel * jnp.sign(c_cone_ang) * c_cone_ang**2 * sc_dir_lvlh
