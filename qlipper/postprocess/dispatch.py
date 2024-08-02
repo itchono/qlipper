@@ -33,7 +33,7 @@ def postprocess_run(run_id: str, t: ArrayLike, y: ArrayLike, cfg: SimConfig) -> 
     plot_save_dir = Path(OUTPUT_DIR) / cfg.name / run_id / "plots"
     plot_save_dir.mkdir(parents=True, exist_ok=True)
 
-    plot_trajectory_mee(t, y, save_path=plot_save_dir / "trajectory.pdf", show=False)
+    plot_trajectory_mee(t, y, save_path=plot_save_dir / "trajectory.pdf", show=True)
     plot_elements_mee(t, y, cfg, save_path=plot_save_dir / "elements.pdf", show=False)
 
     logger.info(f"Postprocessing complete for run: {run_id}")

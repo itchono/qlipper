@@ -19,5 +19,9 @@ dynamic = ["version"]
 [tool.setuptools.packages.find]
 include = ["qlipper"]
 
+[project.scripts]
+postprocess = "qlipper.cli.postprocess:main"
+qlipper = "qlipper.cli.qlipper_run:main"
+
 [project.urls]
 homepage = "https://github.com/itchono/qlipper"

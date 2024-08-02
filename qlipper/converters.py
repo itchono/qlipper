@@ -175,6 +175,48 @@ def cartesian_to_mee(cart: ArrayLike) -> jax.Array:
 
 
 @jax.jit
+def batch_cartesian_to_mee(cart: ArrayLike) -> jax.Array:
+    """
+    Vmapped version of cartesian_to_mee, which ensures
+    that true longitude is unwrapped correctly.
+
+    Parameters
+    ----------
+    cart : ArrayLike
+        Cartesian elements (N, 6)
+
+    Returns
+    -------
+    mee : Array
+        Modified equinoctial elements (N, 6)
+    """
+    mee = jax.vmap(cartesian_to_mee)(cart)
+
+    # unwrap true longitude
+    l_unwrap = jnp.unwrap(mee[:, 5])
+
+    return jnp.column_stack((mee[:, :5], l_unwrap))
+
+
+@jax.jit
+def batch_mee_to_cartesian(mee: ArrayLike) -> jax.Array:
+    """
+    Vmapped version of mee_to_cartesian.
+
+    Parameters
+    ----------
+    mee : ArrayLike
+        Modified equinoctial elements (N, 6)
+
+    Returns
+    -------
+    cart : Array
+        Cartesian elements (N, 6)
+    """
+    return jax.vmap(mee_to_cartesian)(mee)
+
+
+@jax.jit
 def rot_inertial_lvlh(mee: ArrayLike) -> jax.Array:
     """
     Generates the rotation matrix C_IO rotating vectors from the lvlh frame to the inertial frame.

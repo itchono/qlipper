@@ -1,9 +1,10 @@
 import jax.numpy as jnp
-from jax import Array, jit
+from jax import Array, jit, lax
 from jax.typing import ArrayLike
 
 from qlipper.converters import mee_to_cartesian, rot_inertial_lvlh, steering_to_lvlh
 from qlipper.sim import Params
+from qlipper.sim.eclipse import simple_eclipse
 
 
 @jit
@@ -41,9 +42,7 @@ def ideal_solar_sail(
     t: float, y: ArrayLike, params: Params, alpha: float, beta: float
 ) -> Array:
     """
-    Ideal solar sail model.
-
-    TODO: add occlusion
+    Ideal solar sail model. Includes a basic occlusion model.
     """
 
     r_spacecraft_i = mee_to_cartesian(y)[0:3]
@@ -57,11 +56,19 @@ def ideal_solar_sail(
     sunlight_dir_i = -r_rel_sun_i / jnp.linalg.norm(r_rel_sun_i)
     c_cone_ang = sc_dir_i @ sunlight_dir_i
 
+    # eclipsed = simple_eclipse(t, y, params)
+    eclipsed = False
+
     acc_lvlh = (
         params.characteristic_accel * jnp.sign(c_cone_ang) * c_cone_ang**2 * sc_dir_lvlh
     )
 
-    return acc_lvlh
+    return lax.cond(
+        eclipsed,
+        lambda _: jnp.zeros(3),
+        lambda _: acc_lvlh,
+        None,
+    )
 
 
 PROPULSION_MODELS = {

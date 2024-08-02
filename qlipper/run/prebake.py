@@ -7,6 +7,7 @@ from diffrax import CubicInterpolation, backward_hermite_coefficients
 from jax import Array, jit
 
 from qlipper.configuration import SimConfig
+from qlipper.constants import P_SCALING
 from qlipper.sim import Params
 from qlipper.sim.ephemeris import generate_interpolant_arrays, lookup_body_id
 from qlipper.sim.loss import norm_loss
@@ -35,6 +36,9 @@ def prebake_sim_config(cfg: SimConfig) -> Params:
     ephem_t_sample, ephem_r_sample = generate_interpolant_arrays(
         earth, sun, cfg.epoch_jd, cfg.t_span, NUM_SAMPLES
     )
+
+    # convert ephem_r_sample to m
+    ephem_r_sample = ephem_r_sample * 1e3
 
     interp_coeffs = backward_hermite_coefficients(ephem_t_sample, ephem_r_sample.T)
 
@@ -91,5 +95,6 @@ def termination_condition(t: float, y: Array, args: Params, **kwargs) -> bool:
     Termination condition for the ODE solver.
     """
     # Check if the guidance loss is below the convergence tolerance
-    loss = norm_loss(y, args.y_target, args.w_oe)
+    loss = norm_loss(y.at[0].mul(P_SCALING), args.y_target, args.w_oe)
+
     return loss < args.conv_tol

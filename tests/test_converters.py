@@ -2,7 +2,12 @@ import jax
 import jax.numpy as jnp
 import pytest
 
-from qlipper.converters import cartesian_to_mee, mee_to_cartesian
+from qlipper.converters import (
+    batch_cartesian_to_mee,
+    batch_mee_to_cartesian,
+    cartesian_to_mee,
+    mee_to_cartesian,
+)
 
 
 def test_cartesian_to_mee():
@@ -33,13 +38,39 @@ def test_roundtrip_mee_cartesian():
 
 
 def test_converters_batched():
-    c2m_vmap = jax.vmap(cartesian_to_mee, (0,))
-    m2c_vmap = jax.vmap(mee_to_cartesian, (0,))
-
     cart = jnp.array([[1e6, 2e6, 3e6, 4e3, 5e3, 6e3], [1e6, 2e6, 3e6, 4e3, 5e3, 6e3]])
 
-    mee = c2m_vmap(cart)
+    mee = batch_cartesian_to_mee(cart)
 
-    cart_back = m2c_vmap(mee)
+    cart_back = batch_mee_to_cartesian(mee)
 
     assert cart_back == pytest.approx(cart, rel=1e-8)
+
+
+def test_unwrapping():
+    ascending_l = jnp.linspace(0, 17 * jnp.pi, 50)
+
+    mee = jnp.array([1e5, 0, 0, 0, 0, 0])[None, :].repeat(50, axis=0)
+    mee = mee.at[:, 5].set(ascending_l)
+
+    cart = batch_mee_to_cartesian(mee)
+
+    mee_unwrapped = batch_cartesian_to_mee(cart)
+
+    assert jnp.allclose(mee_unwrapped[:, 5], ascending_l)
+    assert jnp.diff(mee_unwrapped[:, 5]).max() < 2 * jnp.pi
+    assert jnp.diff(mee_unwrapped[:, 5]).min() > 0
+
+
+def test_non_unwrapping_fails():
+    ascending_l = jnp.linspace(0, 17 * jnp.pi, 50)
+
+    mee = jnp.array([1e5, 0, 0, 0, 0, 0])[None, :].repeat(50, axis=0)
+    mee = mee.at[:, 5].set(ascending_l)
+
+    cart = batch_mee_to_cartesian(mee)
+
+    mee_out = jax.vmap(cartesian_to_mee)(cart)
+
+    assert not jnp.allclose(mee_out[:, 5], ascending_l)
+    assert jnp.diff(mee_out[:, 5]).min() < 0

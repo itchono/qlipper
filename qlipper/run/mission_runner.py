@@ -73,7 +73,7 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
         # prebake
         term = ODETerm(prebake_ode(dyn_mee, cfg))
         ode_args = prebake_sim_config(cfg)
-        termination_event = Event([termination_condition])  # TODO: get working
+        termination_event = Event(termination_condition)
 
         # preprocessing
         y0 = cfg.y0.at[0].divide(P_SCALING)  # rescale initial state
@@ -101,15 +101,6 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
         sol_t = solution.ts[valid_idx]
 
         # Post-run
-        run_end = datetime.now()
-        run_duration = run_end - run_start
-        logger.info(f"Mission {cfg.name} with ID {run_id} completed in {run_duration}")
-        logger.info(f"Final Error: {norm_loss(sol_y[-1], cfg.y_target, cfg.w_oe)}")
-        logger.info(
-            "Stats:\n"
-            + "\n".join([f"{s_k}: {s_v}" for s_k, s_v in solution.stats.items()])
-        )
-
         match solution.result:
             case RESULTS.event_occurred:
                 logger.info(CONVERGED_BLOCK_LETTERS)
@@ -117,11 +108,16 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
                 logger.info("NOT CONVERGED - reached end of integration interval")
             case _:
                 logger.warning(f"NOT CONVERGED - {solution.result}")
+        logger.info(f"Final Error: {norm_loss(sol_y[-1], cfg.y_target, cfg.w_oe):.5f}")
+        run_end = datetime.now()
+        run_duration = run_end - run_start
+        logger.info(f"Completed in {run_duration}")
+        logger.info(f"Steps: {solution.stats['num_steps']}")
 
         # Post-run saving of results
         with open(mission_dir / "vars.npz", "wb") as f:
             jnp.savez(f, y=sol_y, t=sol_t)
 
-        logger.info(f"Run variables saved to {mission_dir.resolve()}")
+        logger.info(f"Saved to {mission_dir.resolve()}")
 
     return run_id, sol_t, sol_y

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from json import JSONEncoder, loads
+from pathlib import Path
 
 import jax.numpy as jnp
 from jax import Array
@@ -76,21 +77,19 @@ class SimConfig:
         assert len(self.y0) == 6, "Initial state vector must have length 6"
         assert len(self.y_target) == 5, "Target state vector must have length 5"
 
+        # enforce array types
+        for key in ["y0", "y_target", "w_oe"]:
+            object.__setattr__(
+                self, key, jnp.array(getattr(self, key), dtype=jnp.float64)
+            )
+
     def serialize(self) -> str:
         return ArrayEncoder(indent=4).encode(asdict(self))
 
     @classmethod
     def deserialize(cls, s: str) -> SimConfig:
-        d = loads(s)
-
-        # Make sure array types are properly set
-        d["y0"] = jnp.array(d["y0"], dtype=jnp.float64)
-        d["y_target"] = jnp.array(d["y_target"], dtype=jnp.float64)
-        d["w_oe"] = jnp.array(d["w_oe"], dtype=jnp.float64)
-
-        return cls(**d)
+        return cls(**loads(s))
 
     @classmethod
-    def from_file(cls, path: str) -> SimConfig:
-        with open(path, "r") as f:
-            return cls.deserialize(f.read())
+    def from_file(cls, path: Path) -> SimConfig:
+        return cls.deserialize(Path(path).read_text())
