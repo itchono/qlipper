@@ -34,7 +34,7 @@ def cone_adaptation(
 
     n_actual_i = cond(
         c_cone_ang < 0,
-        lambda: n_star_i,
+        lambda: b_i,
         lambda: cond(
             c_cone_ang < jnp.cos(params.kappa),
             lambda: jnp.cos(params.kappa) * u_i + jnp.sin(params.kappa) * b_i,
