@@ -5,7 +5,7 @@ from pathlib import Path
 
 import jax.numpy as jnp
 import numpy as np
-from jax import Array
+from jax import Array, jit
 from jax.typing import ArrayLike
 from jplephem.names import target_name_pairs, target_names
 from jplephem.spk import SPK, Segment
@@ -105,7 +105,9 @@ def path_to_named_string(path: list[int]) -> str:
     str
         The human-readable string
     """
-    return " -> ".join([target_names[body_id].title() for body_id in path])
+    return " -> ".join(
+        [f"{target_names[body_id].title()} ({body_id})" for body_id in path]
+    )
 
 
 def compute_kernel_at_times(
@@ -212,44 +214,12 @@ def generate_interpolant_arrays(
 
     # log compute path
     path = resolve_spk_path(kernel, observer, target)
-    logger.info(f"Resolved SPICE kernel compute path: {path_to_named_string(path)}")
+    logger.info(f"Ephemeris compute path: {path_to_named_string(path)}")
 
     # have to use numpy here because jplephem mutates the input
     t_samples = np.linspace(*t_span, num_samples)
     jd_samples = epoch + t_samples / 86400
 
-    y = compute_kernel_at_times(kernel, observer, target, jd_samples)
+    position_samples = compute_kernel_at_times(kernel, observer, target, jd_samples)
 
-    logger.info(
-        f"Generated interpolant arrays for observer {observer} -> target {target}"
-    )
-
-    return t_samples, y
-
-
-def interp_position(
-    t_eval: ArrayLike, t_samples: ArrayLike, y_samples: ArrayLike
-) -> Array:
-    """
-    Interpolate a position vector at given times
-
-    Parameters
-    ----------
-    t_eval : ArrayLike
-        The times to evaluate the position at
-    t_samples : ArrayLike
-        The times of the samples
-    y_samples : ArrayLike
-        The position vectors at the samples
-
-    Returns
-    -------
-    Array
-        The interpolated position vectors at the evaluation times
-    """
-    assert (
-        len(t_samples) == y_samples.shape[1]
-    ), "t_samples and y_samples must have the same length"
-    assert y_samples.shape[0] == 3, "y_samples must be a 3xN array"
-
-    return jnp.interp(t_eval, t_samples, y_samples, axis=1)
+    return t_samples, position_samples

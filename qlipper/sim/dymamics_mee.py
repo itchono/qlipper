@@ -1,13 +1,13 @@
+from typing import Callable
+
 import jax.numpy as jnp
-from jax import Array, jit
+from jax import Array
 from jax.typing import ArrayLike
 
-from qlipper.configuration import SimConfig
 from qlipper.constants import MU, P_SCALING
 from qlipper.run.prebake import Params
 
 
-@jit
 def gve_coefficients(state: ArrayLike) -> tuple[Array, Array]:
     """
     Gauss variational equation coefficients for
@@ -63,7 +63,6 @@ def gve_coefficients(state: ArrayLike) -> tuple[Array, Array]:
     return A, b
 
 
-@jit
 def gve_mee(state: ArrayLike, accel: ArrayLike) -> Array:
     """
     Gauss variational equation for modified equinoctial elements.
@@ -90,7 +89,14 @@ def gve_mee(state: ArrayLike, accel: ArrayLike) -> Array:
     return dstate_dt
 
 
-def dyn_mee(t: float, y: ArrayLike, params: Params, cfg: SimConfig) -> Array:
+def dyn_mee(
+    t: float,
+    y: ArrayLike,
+    params: Params,
+    steering_law: Callable[[float, Array, Params], tuple[float, float]],
+    propulsion_model: Callable[[float, Array, Params, float, float], Array],
+    perturbations: list[Callable[[float, Array], Array]],
+) -> Array:
     """
     Top level dynamics function for modified equinoctial elements.
 
@@ -122,13 +128,13 @@ def dyn_mee(t: float, y: ArrayLike, params: Params, cfg: SimConfig) -> Array:
     y = y.at[0].mul(P_SCALING)
 
     # Control
-    alpha, beta = cfg.steering_law(t, y, params)
+    alpha, beta = steering_law(t, y, params)
 
     # Acceleration from propulsion
-    acceleration = cfg.propulsion_model(t, y, params, alpha, beta)
+    acceleration = propulsion_model(t, y, params, alpha, beta)
 
     # Perturbations
-    for perturbation in cfg.perturbations:
+    for perturbation in perturbations:
         acceleration += perturbation(t, y)
 
     # Gauss variational equation

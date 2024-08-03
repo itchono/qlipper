@@ -1,81 +1,95 @@
 from __future__ import annotations
 
-from typing import Callable, NamedTuple
+from dataclasses import asdict, dataclass
+from json import JSONEncoder, loads
+from pathlib import Path
 
-from diffrax import AbstractSolver
+import jax.numpy as jnp
 from jax import Array
-from jax_dataclasses import asdict, pytree_dataclass
-
-PropulsionModel = Callable[[float, Array, NamedTuple, float, float], Array]
-# thrust vector as function of (t, y, par, alpha, beta) -> Array (3,)
-
-SteeringLaw = Callable[[float, Array, NamedTuple], tuple[float, float]]
-# steering control as function of (t, y, par) -> (alpha, beta)
-
-Penalty = Callable[[Array], float]
-# penalty function as function of state vector -> float
-
-Perturbation = Callable[[float, Array], Array]
-# perturbation as function of state vector -> Array (3,)
 
 
-@pytree_dataclass(frozen=True)
+class ArrayEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, jnp.ndarray):
+            return obj.tolist()
+        return JSONEncoder.default(self, obj)
+
+
+@dataclass(frozen=True)
 class SimConfig:
+    """
+    Simulation configuration.
+
+    Attributes
+    ----------
+    name : str
+        Mission name.
+    y0 : Array, shape (6,)
+        Initial state vector.
+    y_target : Array, shape (5,)
+        Target state vector.
+    propulsion_model : str
+        Propulsion model.
+    steering_law : str
+        Steering law.
+    t_span : tuple[float, float]
+        Time span in seconds.
+    solver : str
+        ODE solver.
+    conv_tol : float
+        Guidance convergence tolerance.
+    w_oe : Array, shape (5,)
+        Guidance weights.
+    w_penalty : float
+        Penalty weight.
+    penalty_function : str
+        Penalty function.
+    kappa : float
+        Cone angle parameter (degrees).
+    dynamics : str
+        Dynamics type.
+    perturbations : list[str]
+        List of perturbation functions.
+    characteristic_accel : float
+        Characteristic acceleration.
+    epoch_jd : float
+        Epoch Julian date.
+    """
+
     name: str  # mission name
-    y0: Array  # initial state vector, shape (6,)
-    y_target: Array  # target state vector, shape (5,)
-    propulsion_model: PropulsionModel  # propulsion model
-    steering_law: SteeringLaw  # steering law
-    t_span: tuple[float, float]  # (s)
-    solver: AbstractSolver  # solver
-    conv_tol: float  # convergence tolerance
-    w_oe: Array  # guidance weights, shape (5,)
-    w_penalty: float  # penalty weight
-    penalty_function: Penalty  # penalty as function of state vector
-    kappa: float  # cone angle parameter
-    dynamics: str  # dynamics type "mee" or "cart"
-    perturbations: list[Perturbation]  # list of perturbation functions
-    characteristic_accel: float  # characteristic acceleration (m/s^2)
-    epoch_jd: float  # epoch Julian date
+    y0: Array  # shape (6,)
+    y_target: Array  # shape (5,)
+    propulsion_model: str
+    steering_law: str
+    t_span: tuple[float, float]
+    conv_tol: float
+    w_oe: Array
+    w_penalty: float
+    penalty_function: str
+    kappa: float
+    dynamics: str
+    perturbations: list[str]
+    characteristic_accel: float
+    epoch_jd: float
 
-    def serialize(self) -> dict:
-        # replace all functions with their names so that the config can be serialized
-        d = asdict(self)
+    def __post_init__(self):
+        # Validate the configuration
+        assert len(self.y0) == 6, "Initial state vector must have length 6"
+        assert len(self.y_target) == 5, "Target state vector must have length 5"
 
-        # (Arrays)
-        for key, value in d.items():
-            if isinstance(value, Array):
-                d[key] = value.tolist()
+        # enforce array types
+        for key in ["y0", "y_target", "w_oe"]:
+            object.__setattr__(
+                self, key, jnp.array(getattr(self, key), dtype=jnp.float64)
+            )
 
-        # solver
-        solver_name = self.solver.__class__.__name__
-        d["solver"] = solver_name
-
-        # propulsion model
-        propulsion_model_name = self.propulsion_model.__name__
-        d["propulsion_model"] = propulsion_model_name
-
-        # steering law
-        steering_law_name = self.steering_law.__name__
-        d["steering_law"] = steering_law_name
-
-        # penalty function
-        penalty_function_name = self.penalty_function.__name__
-        d["penalty_function"] = penalty_function_name
-
-        # perturbations
-        perturbations_names = [p.__name__ for p in self.perturbations]
-        d["perturbations"] = perturbations_names
-
-        return d
+    def serialize(self) -> str:
+        return ArrayEncoder(indent=4).encode(asdict(self))
 
     @classmethod
-    def deserialize(cls, d: dict) -> SimConfig:
-        # replace all function names with the actual functions
-        d = d.copy()
+    def deserialize(cls, s: str) -> SimConfig:
+        return cls(**loads(s))
 
-        # TODO: some importlib magic to get the functions from their names
-
-        raise NotImplementedError()
-
-        return cls(**d)
+    @classmethod
+    def from_file(cls, path: Path) -> SimConfig:
+        return cls.deserialize(Path(path).read_text())

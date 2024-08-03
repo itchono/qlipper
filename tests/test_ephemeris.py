@@ -29,7 +29,7 @@ def test_path_to_named_string():
     path = [399, 3, 0, 4]
     assert (
         path_to_named_string(path)
-        == "Earth -> Earth Barycenter -> Solar System Barycenter -> Mars Barycenter"
+        == "Earth (399) -> Earth Barycenter (3) -> Solar System Barycenter (0) -> Mars Barycenter (4)"
     )
 
 
