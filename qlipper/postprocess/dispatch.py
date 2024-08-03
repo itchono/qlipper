@@ -6,8 +6,7 @@ from jax.typing import ArrayLike
 
 from qlipper.configuration import SimConfig
 from qlipper.constants import OUTPUT_DIR
-from qlipper.postprocess.elem_plotters import plot_elements_mee
-from qlipper.postprocess.traj_plotters import plot_trajectory_mee
+from qlipper.postprocess.plot_mee import plot_elements_mee, plot_trajectory_mee
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ def postprocess_run(run_id: str, t: ArrayLike, y: ArrayLike, cfg: SimConfig) -> 
     plot_save_dir = Path(OUTPUT_DIR) / cfg.name / run_id / "plots"
     plot_save_dir.mkdir(parents=True, exist_ok=True)
 
-    plot_trajectory_mee(t, y, save_path=plot_save_dir / "trajectory.pdf", show=True)
+    plot_trajectory_mee(t, y, save_path=plot_save_dir / "trajectory.pdf", show=False)
     plot_elements_mee(t, y, cfg, save_path=plot_save_dir / "elements.pdf", show=False)
 
     logger.info(f"Postprocessing complete for run: {run_id}")
