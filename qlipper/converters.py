@@ -217,15 +217,23 @@ def batch_mee_to_cartesian(mee: ArrayLike) -> jax.Array:
 
 
 @jax.jit
-def rot_inertial_lvlh(mee: ArrayLike) -> jax.Array:
+def rot_inertial_lvlh(y: ArrayLike) -> jax.Array:
     """
-    Generates the rotation matrix C_IO rotating vectors from the lvlh frame to the inertial frame.
-    i.e. v_I = C_IO @ v_O
-    """
+    Generates the rotation matrix C_IO rotating vectors from the lvlh frame
+    to the inertial frame. i.e. v_I = C_IO @ v_O
 
-    cart = mee_to_cartesian(mee)
-    pos = cart[:3]
-    vel = cart[3:]
+    Parameters
+    ----------
+    y : ArrayLike
+        Cartesian State vector [m, m/s]
+
+    Returns
+    -------
+    C_IO : Array
+        Rotation matrix from LVLH to Inertial frame
+    """
+    pos = y[:3]
+    vel = y[3:]
 
     pos_unit = pos / jnp.linalg.norm(pos)
     vel_unit = vel / jnp.linalg.norm(vel)
@@ -237,5 +245,20 @@ def rot_inertial_lvlh(mee: ArrayLike) -> jax.Array:
 
 
 @jax.jit
-def rot_lvlh_inertial(mee: ArrayLike) -> jax.Array:
-    return rot_inertial_lvlh(mee).T
+def rot_lvlh_inertial(cart: ArrayLike) -> jax.Array:
+    """
+    Generates the rotation matrix C_OI rotating vectors from the inertial frame
+    to the lvlh frame. i.e. v_O = C_OI @ v_I
+
+    Parameters
+    ----------
+    cart : ArrayLike
+        Cartesian State vector [m, m/s]
+
+    Returns
+    -------
+    C_OI : Array
+        Rotation matrix from Inertial to LVLH frame
+    """
+
+    return rot_inertial_lvlh(cart).T

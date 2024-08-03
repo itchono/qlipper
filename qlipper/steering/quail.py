@@ -17,13 +17,20 @@ def cone_adaptation(
 ):
     """
     Cone angle adaptation heuristic.
+
+    Parameters
+    ----------
+    t : float
+        Time.
+    y : ArrayLike
+        State vector in Cartesian elements.
     """
     C_IO = rot_inertial_lvlh(y)
     C_OI = C_IO.T
 
     n_star_i = C_IO @ steering_to_lvlh(alpha_star, beta_star)
 
-    r_spacecraft_i = mee_to_cartesian(y)[0:3]
+    r_spacecraft_i = y[0:3]
     r_sun_i = params.sun_ephem.evaluate(t)
     r_rel_sun_i = r_sun_i - r_spacecraft_i
     u_i = -r_rel_sun_i / jnp.linalg.norm(r_rel_sun_i)
@@ -50,10 +57,10 @@ def quail(t: float, y: ArrayLike, params: Params) -> tuple[float, float]:
     Q-law using angle of incidence limits.
     """
     # first stage
-
     alpha_star, beta_star = q_law(t, y, params)
 
     # second stage
-    alpha, beta = cone_adaptation(t, y, params, alpha_star, beta_star)
+    cart = mee_to_cartesian(y)
+    alpha, beta = cone_adaptation(t, cart, params, alpha_star, beta_star)
 
     return alpha, beta

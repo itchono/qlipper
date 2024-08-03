@@ -24,17 +24,19 @@ def prebake_sim_config(cfg: SimConfig) -> Params:
     """
 
     # Generate ephemeris interpolant arrays
-    logger.info("Generating ephemeris interpolant arrays...")
-
     sun = lookup_body_id("sun")
     earth = lookup_body_id("earth")
 
-    # TODO: either add a heuristic or make this a parameter
-    NUM_SAMPLES = 100
+    # Heuristic: 300 samples per year
+    num_ephem_samples = int((cfg.t_span[1] - cfg.t_span[0]) / 86400 / 365 * 300)
+    logger.info(
+        "Generating ephemeris interpolant arrays - "
+        f"{num_ephem_samples} samples will be used"
+    )
 
     # Generate ephemeris interpolants
     ephem_t_sample, ephem_r_sample = generate_interpolant_arrays(
-        earth, sun, cfg.epoch_jd, cfg.t_span, NUM_SAMPLES
+        earth, sun, cfg.epoch_jd, cfg.t_span, num_ephem_samples
     )
 
     # convert ephem_r_sample to m
