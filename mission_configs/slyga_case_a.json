@@ -1,0 +1,39 @@
+{
+    "name": "slyga_case_a",
+    "y0": [
+        20000000.0,
+        0.5,
+        -0.2,
+        0.5,
+        0.0,
+        0.0
+    ],
+    "y_target": [
+        25000000.0,
+        0.2,
+        0.5,
+        0.0,
+        0.3
+    ],
+    "propulsion_model": "ideal_solar_sail",
+    "steering_law": "quail",
+    "t_span": [
+        0,
+        100000000.0
+    ],
+    "conv_tol": 0.01,
+    "w_oe": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+    ],
+    "w_penalty": 0,
+    "penalty_function": "",
+    "kappa": 64,
+    "dynamics": "mee",
+    "perturbations": [],
+    "characteristic_accel": 0.01,
+    "epoch_jd": 2459653.5
+}

@@ -113,6 +113,7 @@ def plot_trajectory_mee(
 
     # interpolate smootly in L
     t_interp, y_interp = interpolate_mee(t, y, seg_per_orbit=100)
+    cart = batch_mee_to_cartesian(y_interp)
 
     fig = plt.figure(figsize=(6, 6), constrained_layout=True)
     ax: Axes3D = fig.add_subplot(projection="3d")
@@ -123,18 +124,24 @@ def plot_trajectory_mee(
     plot_sphere(ax, radius=R_EARTH, plot_kwargs={"color": "C0", "alpha": 0.5})
 
     # split the trajectory into segments based on L
-    NUM_SEGMENTS = 20
-
-    t_chunked = np.array_split(t_interp, NUM_SEGMENTS)
-    y_chunked = np.array_split(y_interp, NUM_SEGMENTS, axis=0)
+    NUM_SEGMENTS = 50
+    idx_breakpoints = np.linspace(0, len(cart), NUM_SEGMENTS + 1, dtype=int)
 
     cm = plt.get_cmap("turbo")
 
     for i in range(NUM_SEGMENTS):
-        cart = batch_mee_to_cartesian(y_chunked[i])
         default_plot_kwargs = {"linewidth": 1, "color": cm(i / NUM_SEGMENTS)}
         actual_plot_kwargs = default_plot_kwargs | plot_kwargs
-        ax.plot(cart[:, 0], cart[:, 1], cart[:, 2], **actual_plot_kwargs)
+
+        # segments have overlapping points
+        plot_slice = slice(idx_breakpoints[i], idx_breakpoints[i + 1] + 1)
+
+        ax.plot(
+            cart[plot_slice, 0],
+            cart[plot_slice, 1],
+            cart[plot_slice, 2],
+            **actual_plot_kwargs,
+        )
 
     ax.set_xlabel("X [m]")
     ax.set_ylabel("Y [m]")
@@ -149,6 +156,7 @@ def plot_trajectory_mee(
         ax=ax,
         label="Orbit Number",
         format=FuncFormatter(lambda x, _: f"{x*n_orbits:.0f}"),
+        location="bottom",
     )
 
     if save_path is not None:
