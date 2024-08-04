@@ -119,9 +119,13 @@ def plot_trajectory_mee(
     ax: Axes3D = fig.add_subplot(projection="3d")
 
     # MATLAB default view
-    ax.view_init(elev=30, azim=180 - 37.5)
+    ax.view_init(elev=30, azim=-127.5)
 
-    plot_sphere(ax, radius=R_EARTH, plot_kwargs={"color": "C0", "alpha": 0.5})
+    plot_sphere(
+        ax,
+        radius=R_EARTH,
+        plot_kwargs={"color": (0.3010, 0.7450, 0.9330), "alpha": 0.6},
+    )
 
     # split the trajectory into segments based on L
     NUM_SEGMENTS = 50
@@ -160,7 +164,7 @@ def plot_trajectory_mee(
     )
 
     if save_path is not None:
-        plt.savefig(save_path, **save_kwargs)
+        fig.savefig(save_path, **save_kwargs)
 
     if show:
         plt.show()
