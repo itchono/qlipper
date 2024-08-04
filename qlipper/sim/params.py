@@ -20,4 +20,5 @@ class Params(NamedTuple):
     kappa: float
     characteristic_accel: float
     epoch_jd: float
-    sun_ephem: CubicInterpolation  # gives in km
+    sun_ephem: CubicInterpolation  # meters
+    moon_ephem: CubicInterpolation  # meters

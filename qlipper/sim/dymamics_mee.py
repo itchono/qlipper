@@ -4,7 +4,7 @@ import jax.numpy as jnp
 from jax import Array
 from jax.typing import ArrayLike
 
-from qlipper.constants import MU, P_SCALING
+from qlipper.constants import MU_EARTH, P_SCALING
 from qlipper.converters import mee_to_cartesian
 from qlipper.run.prebake import Params
 
@@ -33,7 +33,7 @@ def gve_coefficients(state: ArrayLike) -> tuple[Array, Array]:
     # shorthand quantities
     q = 1 + f * jnp.cos(L) + g * jnp.sin(L)
 
-    leading_coefficient = 1 / q * jnp.sqrt(p / MU)
+    leading_coefficient = 1 / q * jnp.sqrt(p / MU_EARTH)
 
     # A-matrix
     A = (
@@ -59,7 +59,7 @@ def gve_coefficients(state: ArrayLike) -> tuple[Array, Array]:
     )
 
     # b-vector
-    b = jnp.array([0, 0, 0, 0, 0, q**2 * jnp.sqrt(MU * p) / p**2])
+    b = jnp.array([0, 0, 0, 0, 0, q**2 * jnp.sqrt(MU_EARTH * p) / p**2])
 
     return A, b
 
@@ -96,7 +96,7 @@ def dyn_mee(
     params: Params,
     steering_law: Callable[[float, Array, Params], tuple[float, float]],
     propulsion_model: Callable[[float, Array, Params, float, float], Array],
-    perturbations: list[Callable[[float, Array], Array]],
+    perturbations: list[Callable[[float, Array, Params], Array]],
 ) -> Array:
     """
     Top level dynamics function for modified equinoctial elements.
@@ -145,7 +145,7 @@ def dyn_mee(
 
     # Perturbations
     for perturbation in perturbations:
-        acc_lvlh += perturbation(t, y)
+        acc_lvlh += perturbation(t, y, params)
 
     # Gauss variational equation
     dy_dt = gve_mee(y, acc_lvlh)

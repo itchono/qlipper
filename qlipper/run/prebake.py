@@ -29,26 +29,33 @@ def prebake_sim_config(cfg: SimConfig) -> Params:
     # Generate ephemeris interpolant arrays
     sun = lookup_body_id("sun")
     earth = lookup_body_id("earth")
+    moon = lookup_body_id("moon")
 
     # Heuristic: 300 samples per year
     num_ephem_samples = max(int((cfg.t_span[1] - cfg.t_span[0]) / 86400 / 365 * 300), 2)
+
+    # TODO: only generate ephem interpolants for the bodies that are actually used
 
     logger.info(
         "Generating ephemeris interpolant arrays - "
         f"{num_ephem_samples} samples will be used"
     )
 
-    # Generate ephemeris interpolants
-    ephem_t_sample, ephem_r_sample = generate_interpolant_arrays(
+    # Generate sun ephemeris interpolant
+    sun_t_sample, sun_r_sample = generate_interpolant_arrays(
         earth, sun, cfg.epoch_jd, cfg.t_span, num_ephem_samples
     )
+    sun_r_sample = sun_r_sample * 1e3  # convertfrom km to m
+    interp_coeffs = backward_hermite_coefficients(sun_t_sample, sun_r_sample.T)
+    sun_ephem = CubicInterpolation(sun_t_sample, interp_coeffs)
 
-    # convert ephem_r_sample to m
-    ephem_r_sample = ephem_r_sample * 1e3
-
-    interp_coeffs = backward_hermite_coefficients(ephem_t_sample, ephem_r_sample.T)
-
-    ephem_interpolant = CubicInterpolation(ephem_t_sample, interp_coeffs)
+    # Generate moon ephemeris interpolant
+    moon_t_sample, moon_r_sample = generate_interpolant_arrays(
+        earth, moon, cfg.epoch_jd, cfg.t_span, num_ephem_samples
+    )
+    moon_r_sample = moon_r_sample * 1e3  # convertfrom km to m
+    interp_coeffs = backward_hermite_coefficients(moon_t_sample, moon_r_sample.T)
+    moon_ephem = CubicInterpolation(moon_t_sample, interp_coeffs)
 
     return Params(
         y_target=cfg.y_target,
@@ -58,7 +65,8 @@ def prebake_sim_config(cfg: SimConfig) -> Params:
         kappa=jnp.deg2rad(cfg.kappa),
         characteristic_accel=cfg.characteristic_accel,
         epoch_jd=cfg.epoch_jd,
-        sun_ephem=ephem_interpolant,
+        sun_ephem=sun_ephem,
+        moon_ephem=moon_ephem,
     )
 
 

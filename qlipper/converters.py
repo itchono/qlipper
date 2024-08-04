@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 from jax.typing import ArrayLike
 
-from qlipper.constants import MU
+from qlipper.constants import MU_EARTH
 
 
 @jax.jit
@@ -99,7 +99,7 @@ def mee_to_cartesian(mee: ArrayLike) -> jax.Array:
     vel = (
         1
         / s_sq
-        * jnp.sqrt(MU / p)
+        * jnp.sqrt(MU_EARTH / p)
         * jnp.array(
             [
                 -(
@@ -155,14 +155,14 @@ def cartesian_to_mee(cart: ArrayLike) -> jax.Array:
     hmag = jnp.linalg.norm(hvec, ord=2)
     hhat = hvec / hmag
     vhat = (rmag * vel - rdv * rhat) / hmag
-    p = hmag**2 / MU
+    p = hmag**2 / MU_EARTH
     k = hhat[0] / (1 + hhat[2])
     h = -hhat[1] / (1 + hhat[2])
     kk = k**2
     hh = h**2
     s2 = 1 + hh + kk
     tkh = 2 * k * h
-    ecc = jnp.cross(vel, hvec) / MU - rhat
+    ecc = jnp.cross(vel, hvec) / MU_EARTH - rhat
     fhat = jnp.array([1 - kk + hh, tkh, -2 * k])
     ghat = jnp.array([tkh, 1 + kk - hh, 2 * h])
     fhat = fhat / s2

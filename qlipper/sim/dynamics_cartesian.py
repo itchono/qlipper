@@ -4,7 +4,7 @@ import jax.numpy as jnp
 from jax import Array
 from jax.typing import ArrayLike
 
-from qlipper.constants import MU
+from qlipper.constants import MU_EARTH
 from qlipper.converters import cartesian_to_mee, rot_inertial_lvlh
 from qlipper.run.prebake import Params
 
@@ -17,7 +17,7 @@ def dyn_cartesian(
     params: Params,
     steering_law: Callable[[float, Array, Params], tuple[float, float]],
     propulsion_model: Callable[[float, Array, Params, float, float], Array],
-    perturbations: list[Callable[[float, Array], Array]],
+    perturbations: list[Callable[[float, Array, Params], Array]],
 ) -> Array:
     """
     Top level dynamics function for Carteisan state
@@ -56,12 +56,12 @@ def dyn_cartesian(
 
     # Perturbations
     for perturbation in perturbations:
-        acc_lvlh += perturbation(t, y)
+        acc_lvlh += perturbation(t, y, params)
 
     # Newton's Second Law
     acc_inertial = rot_inertial_lvlh(y) @ acc_lvlh
 
-    acc_gravity = -MU * y[:3] / jnp.linalg.norm(y[:3]) ** 3
+    acc_gravity = -MU_EARTH * y[:3] / jnp.linalg.norm(y[:3]) ** 3
 
     dydt = jnp.concatenate([y[3:], acc_inertial + acc_gravity])
     dydt_scaled = dydt / CARTESIAN_DYN_SCALING

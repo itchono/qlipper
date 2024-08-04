@@ -3,7 +3,7 @@ from jax import Array
 from jax.lax import cond
 from jax.typing import ArrayLike
 
-from qlipper.constants import MU, P_SCALING
+from qlipper.constants import MU_EARTH, P_SCALING
 from qlipper.sim import Params
 from qlipper.sim.dymamics_mee import gve_coefficients
 
@@ -28,9 +28,9 @@ def approx_max_roc(y: ArrayLike, params: Params) -> Array:
 
     q = 1 + f * jnp.cos(L) + g * jnp.sin(L)
 
-    d_p_max = 2 * p / q * jnp.sqrt(p / MU)
-    d_f_max = 2 * jnp.sqrt(p / MU)
-    d_g_max = 2 * jnp.sqrt(p / MU)
+    d_p_max = 2 * p / q * jnp.sqrt(p / MU_EARTH)
+    d_f_max = 2 * jnp.sqrt(p / MU_EARTH)
+    d_g_max = 2 * jnp.sqrt(p / MU_EARTH)
 
     # singularity detection for d_h_max and d_k_max
     singularity_h = jnp.abs(1 + h**2 + k**2) < 1e-6
@@ -45,8 +45,8 @@ def approx_max_roc(y: ArrayLike, params: Params) -> Array:
         lambda: jnp.sqrt(1 - f**2) + g,
     )
 
-    d_h_max = 1 / 2 * jnp.sqrt(p / MU) * (1 + h**2 + k**2) / d1
-    d_k_max = 1 / 2 * jnp.sqrt(p / MU) * (1 + h**2 + k**2) / d2
+    d_h_max = 1 / 2 * jnp.sqrt(p / MU_EARTH) * (1 + h**2 + k**2) / d1
+    d_k_max = 1 / 2 * jnp.sqrt(p / MU_EARTH) * (1 + h**2 + k**2) / d2
 
     return (
         jnp.array([d_p_max, d_f_max, d_g_max, d_h_max, d_k_max])
