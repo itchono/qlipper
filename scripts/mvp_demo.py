@@ -2,6 +2,7 @@ import jax.numpy as jnp
 
 from qlipper.configuration import SimConfig
 from qlipper.postprocess import postprocess_run
+from qlipper.run.diagnostics import single_step_debug
 from qlipper.run.mission_runner import run_mission
 
 sim_case = SimConfig(
@@ -16,7 +17,7 @@ sim_case = SimConfig(
     w_penalty=0,
     penalty_function="",
     kappa=jnp.deg2rad(64),
-    dynamics="mee",
+    dynamics="cartesian",
     perturbations=[],
     epoch_jd=2451545.0,
     characteristic_accel=0.001,

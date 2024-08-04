@@ -2,7 +2,7 @@ import jax.numpy as jnp
 from jax import Array, jit, lax
 from jax.typing import ArrayLike
 
-from qlipper.converters import mee_to_cartesian, rot_inertial_lvlh, steering_to_lvlh
+from qlipper.converters import rot_inertial_lvlh, steering_to_lvlh
 from qlipper.sim import Params
 from qlipper.sim.eclipse import simple_eclipse
 

@@ -5,7 +5,7 @@ from jax import Array
 from jax.typing import ArrayLike
 
 from qlipper.constants import MU
-from qlipper.converters import rot_inertial_lvlh
+from qlipper.converters import cartesian_to_mee, rot_inertial_lvlh
 from qlipper.run.prebake import Params
 
 CARTESIAN_DYN_SCALING = 1e3
@@ -48,7 +48,8 @@ def dyn_cartesian(
     y = y * CARTESIAN_DYN_SCALING
 
     # Control
-    alpha, beta = steering_law(t, y, params)
+    mee = cartesian_to_mee(y)
+    alpha, beta = steering_law(t, mee, params)
 
     # Acceleration from propulsion (LVLH frame)
     acc_lvlh = propulsion_model(t, y, params, alpha, beta)
@@ -58,8 +59,11 @@ def dyn_cartesian(
         acc_lvlh += perturbation(t, y)
 
     # Newton's Second Law
-    acc_inertial = rot_inertial_lvlh() @ acc_lvlh
+    acc_inertial = rot_inertial_lvlh(y) @ acc_lvlh
 
     acc_gravity = -MU * y[:3] / jnp.linalg.norm(y[:3]) ** 3
 
-    return jnp.concatenate([y[3:], acc_inertial + acc_gravity]) / CARTESIAN_DYN_SCALING
+    dydt = jnp.concatenate([y[3:], acc_inertial + acc_gravity])
+    dydt_scaled = dydt / CARTESIAN_DYN_SCALING
+
+    return dydt_scaled

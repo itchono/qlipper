@@ -6,7 +6,6 @@ from qlipper.constants import R_EARTH
 from qlipper.sim import Params
 
 
-@jax.jit
 def simple_eclipse(t: ArrayLike, y: ArrayLike, params: Params) -> bool:
     """
     Check if the spacecraft is in eclipse, using

@@ -7,6 +7,7 @@ from qlipper.converters import (
     batch_mee_to_cartesian,
     cartesian_to_mee,
     mee_to_cartesian,
+    rot_inertial_lvlh,
 )
 
 
@@ -74,3 +75,21 @@ def test_non_unwrapping_fails():
 
     assert not jnp.allclose(mee_out[:, 5], ascending_l)
     assert jnp.diff(mee_out[:, 5]).min() < 0
+
+
+def test_rot_inertial_lvlh():
+    # Reference: MATLAB code
+    mee = jnp.array([1.3547e5, -0.8809, 0.4217, -1.3798, -0.6899, -0.6087])
+    cart = mee_to_cartesian(mee)
+
+    rot = rot_inertial_lvlh(cart)
+
+    ref = jnp.array(
+        [
+            [0.267232581529630, 0.872880567632737, -0.408247794872378],
+            [0.534517508499001, 0.218233785274841, 0.816495589744755],
+            [0.801796595451134, -0.436409818420443, -0.408250768412266],
+        ]
+    )
+
+    assert rot == pytest.approx(ref, rel=1e-4)
