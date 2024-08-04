@@ -145,6 +145,7 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
             ),
             event=end_event,
             saveat=SaveAt(steps=True),
+            throw=False,
         )
 
         # postprocessing
