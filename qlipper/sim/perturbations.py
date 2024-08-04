@@ -56,3 +56,9 @@ def j2(t: float, y: jax.Array, params: Params) -> jax.Array:
     """
     pass
     # TODO: Implement J2 perturbation
+
+
+PERTURBATIONS = {
+    "moon_gravity": moon_gravity,
+    "j2": j2,
+}

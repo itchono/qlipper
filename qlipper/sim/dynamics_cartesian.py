@@ -6,7 +6,7 @@ from jax.typing import ArrayLike
 
 from qlipper.constants import MU_EARTH
 from qlipper.converters import cartesian_to_mee, rot_inertial_lvlh
-from qlipper.run.prebake import Params
+from qlipper.sim.params import Params
 
 CARTESIAN_DYN_SCALING = 1e3
 

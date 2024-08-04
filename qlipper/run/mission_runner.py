@@ -22,8 +22,8 @@ from qlipper.constants import (
     QLIPPER_BLOCK_LETTERS,
 )
 from qlipper.converters import batch_cartesian_to_mee, mee_to_cartesian
+from qlipper.run.events import get_termination_events
 from qlipper.run.prebake import (
-    prebake_convergence_criterion,
     prebake_ode,
     prebake_sim_config,
 )
@@ -128,7 +128,7 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
         term = ODETerm(prebake_ode(cfg))
         ode_args = prebake_sim_config(cfg)
         y0 = preprocess_y0(cfg)
-        end_event = prebake_convergence_criterion(cfg)
+        end_event = get_termination_events(cfg)
 
         # Run
         logger.info(QLIPPER_BLOCK_LETTERS)
@@ -153,7 +153,10 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
         # Post-run
         match solution.result:
             case RESULTS.event_occurred:
-                logger.info(CONVERGED_BLOCK_LETTERS)
+                if solution.event_mask[0]:
+                    logger.info(CONVERGED_BLOCK_LETTERS)
+                else:
+                    logger.info("CRASHED!!")
             case RESULTS.successful:
                 logger.info("NOT CONVERGED - reached end of integration interval")
             case _:

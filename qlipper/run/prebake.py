@@ -3,17 +3,15 @@ from functools import partial
 from typing import Any, Callable
 
 import jax.numpy as jnp
-from diffrax import CubicInterpolation, Event, backward_hermite_coefficients
+from diffrax import CubicInterpolation, backward_hermite_coefficients
 from jax import Array, jit
 
 from qlipper.configuration import SimConfig
-from qlipper.constants import P_SCALING
-from qlipper.converters import cartesian_to_mee
 from qlipper.sim import Params
 from qlipper.sim.dymamics_mee import dyn_mee
-from qlipper.sim.dynamics_cartesian import CARTESIAN_DYN_SCALING, dyn_cartesian
+from qlipper.sim.dynamics_cartesian import dyn_cartesian
 from qlipper.sim.ephemeris import generate_interpolant_arrays, lookup_body_id
-from qlipper.sim.loss import l2_loss
+from qlipper.sim.perturbations import PERTURBATIONS
 from qlipper.sim.propulsion import PROPULSION_MODELS
 from qlipper.steering import STEERING_LAWS
 
@@ -102,81 +100,8 @@ def prebake_ode(cfg: SimConfig) -> Callable[[float, Array, Any], Array]:
             ode,
             steering_law=steering_law,
             propulsion_model=propulsion_model,
-            perturbations=[],  # TODO: eventually add perturbations
+            perturbations=[PERTURBATIONS[p] for p in cfg.perturbations],
         )
     )
 
     return baked_ode
-
-
-def converged_mee(t: float, y: Array, args: Params, **kwargs) -> bool:
-    """
-    Termination condition for the ODE solver.
-
-    Parameters
-    ----------
-    t : float
-        Current time
-    y : Array
-        Scaled MEE state vector
-    args : Params
-        Simulation parameters
-
-    Returns
-    -------
-    bool
-        True if the termination condition is met
-    """
-    # Check if the guidance loss is below the convergence tolerance
-    loss = l2_loss(y.at[0].mul(P_SCALING), args.y_target, args.w_oe)
-
-    return loss < args.conv_tol
-
-
-def converged_cart(t: float, y: Array, args: Params, **kwargs) -> bool:
-    """
-    Termination condition for the ODE solver.
-
-    Parameters
-    ----------
-    t : float
-        Current time
-    y : Array
-        Scaled Cartesian state vector
-    args : Params
-        Simulation parameters
-
-    Returns
-    -------
-    bool
-        True if the termination condition is met
-    """
-    cart_unscaled = y * CARTESIAN_DYN_SCALING
-    mee = cartesian_to_mee(cart_unscaled)
-
-    # Check if the guidance loss is below the convergence tolerance
-    loss = l2_loss(mee, args.y_target, args.w_oe)
-
-    return loss < args.conv_tol
-
-
-def prebake_convergence_criterion(cfg: SimConfig) -> Event:
-    """
-    Select the correct convergence criterion
-
-    Parameters
-    ----------
-    cfg : SimConfig
-        The simulation configuration
-
-    Returns
-    -------
-    baked_convergence_criterion : Callable[[float, Array, Params], bool]
-        The baked convergence criterion function
-    """
-    dynamics_options: dict[str, Callable[[float, Array, Params], bool]] = {
-        "mee": converged_mee,
-        "cartesian": converged_cart,
-    }
-
-    return Event(dynamics_options[cfg.dynamics])
