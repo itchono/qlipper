@@ -84,7 +84,7 @@ def plot_elements_mee(
 
 def plot_trajectory_mee(
     t: ArrayLike,
-    y: ArrayLike,
+    mee: ArrayLike,
     plot_kwargs: dict[str, Any] = {},
     save_path: Path | None = None,
     save_kwargs: dict[str, Any] = {},
@@ -99,7 +99,7 @@ def plot_trajectory_mee(
     ----------
     t : ArrayLike
         Time array.
-    y : ArrayLike
+    mee : ArrayLike
         Modified equinoctial elements array.
     save_path : Path | None, optional
         Path to save the plot, by default None.
@@ -109,19 +109,23 @@ def plot_trajectory_mee(
         Whether to show the plot, by default False.
     """
 
-    n_orbits = y[-1, -1] // (2 * np.pi)
+    n_orbits = mee[-1, -1] // (2 * np.pi)
 
     # interpolate smootly in L
-    t_interp, y_interp = interpolate_mee(t, y, seg_per_orbit=100)
-    cart = batch_mee_to_cartesian(y_interp)
+    t_interp, mee_interp = interpolate_mee(t, mee, seg_per_orbit=100)
+    cart = batch_mee_to_cartesian(mee_interp)
 
     fig = plt.figure(figsize=(6, 6), constrained_layout=True)
     ax: Axes3D = fig.add_subplot(projection="3d")
 
     # MATLAB default view
-    ax.view_init(elev=30, azim=180 - 37.5)
+    ax.view_init(elev=30, azim=-127.5)
 
-    plot_sphere(ax, radius=R_EARTH, plot_kwargs={"color": "C0", "alpha": 0.5})
+    plot_sphere(
+        ax,
+        radius=R_EARTH,
+        plot_kwargs={"color": (0.3010, 0.7450, 0.9330), "alpha": 0.6},
+    )
 
     # split the trajectory into segments based on L
     NUM_SEGMENTS = 50
@@ -160,7 +164,7 @@ def plot_trajectory_mee(
     )
 
     if save_path is not None:
-        plt.savefig(save_path, **save_kwargs)
+        fig.savefig(save_path, **save_kwargs)
 
     if show:
         plt.show()

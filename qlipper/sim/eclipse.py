@@ -1,8 +1,8 @@
+import jax
 import jax.numpy as jnp
 from jax.typing import ArrayLike
 
 from qlipper.constants import R_EARTH
-from qlipper.converters import mee_to_cartesian
 from qlipper.sim import Params
 
 
@@ -16,7 +16,7 @@ def simple_eclipse(t: ArrayLike, y: ArrayLike, params: Params) -> bool:
     t : float
         Time.
     y : Array
-        State vector (MEE).
+        State vector (Cartesian).
     params : Params
         Simulation parameters.
 
@@ -26,7 +26,7 @@ def simple_eclipse(t: ArrayLike, y: ArrayLike, params: Params) -> bool:
         Whether the spacecraft is in eclipse.
     """
 
-    r_spacecraft = mee_to_cartesian(y)[:3]
+    r_spacecraft = y[:3]
     r_sun = params.sun_ephem.evaluate(t)
 
     mag_r_spacecraft = jnp.linalg.norm(r_spacecraft)

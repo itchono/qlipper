@@ -2,7 +2,7 @@ import jax.numpy as jnp
 from jax import Array, jit, lax
 from jax.typing import ArrayLike
 
-from qlipper.converters import mee_to_cartesian, rot_inertial_lvlh, steering_to_lvlh
+from qlipper.converters import rot_inertial_lvlh, steering_to_lvlh
 from qlipper.sim import Params
 from qlipper.sim.eclipse import simple_eclipse
 
@@ -12,14 +12,17 @@ def constant_thrust(
     t: float, y: ArrayLike, params: Params, alpha: float, beta: float
 ) -> Array:
     """
-    Constant thrust model.
+    Constant thrust model; always returns
+    thrust in the direction of the spacecraft.
+
+    Output vector is in LVLH frame.
 
     Parameters
     ----------
     t : float
-        Time since epoch (s).
+        Time since epoch (s). [Unused]
     y : ArrayLike
-        State vector in modified equinoctial elements.
+        State vector [Unused, can be anything]
     params : Params
         Sim parameters
     alpha : float
@@ -29,7 +32,7 @@ def constant_thrust(
 
     Returns
     -------
-    sc_dir_lvlh : Array
+    acc_lvlh : Array
         Thrust vector in LVLH frame.
     """
     sc_dir_lvlh = steering_to_lvlh(alpha, beta)
@@ -43,9 +46,29 @@ def ideal_solar_sail(
 ) -> Array:
     """
     Ideal solar sail model. Includes a basic occlusion model.
+
+    Output vector is in LVLH frame.
+
+    Parameters
+    ----------
+    t : float
+        Time since epoch (s).
+    y : ArrayLike
+        Cartesian state vector [m, m/s].
+    params : Params
+        Sim parameters
+    alpha : float
+        Steering angle in the y-x plane [rad].
+    beta : float
+        Steering angle towards the z-axis [rad].
+
+    Returns
+    -------
+    acc_lvlh : Array
+        Thrust vector in LVLH frame.
     """
 
-    r_spacecraft_i = mee_to_cartesian(y)[0:3]
+    r_spacecraft_i = y[0:3]
 
     sc_dir_lvlh = steering_to_lvlh(alpha, beta)
     sc_dir_i = rot_inertial_lvlh(y) @ sc_dir_lvlh

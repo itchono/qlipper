@@ -21,7 +21,7 @@
         0,
         100000000.0
     ],
-    "conv_tol": 0.01,
+    "conv_tol": 5e-3,
     "w_oe": [
         1.0,
         1.0,
@@ -32,8 +32,8 @@
     "w_penalty": 0,
     "penalty_function": "",
     "kappa": 64,
-    "dynamics": "mee",
+    "dynamics": "cartesian",
     "perturbations": [],
-    "characteristic_accel": 0.01,
+    "characteristic_accel": 0.0015,
     "epoch_jd": 2459653.5
 }
