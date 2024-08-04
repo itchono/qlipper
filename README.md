@@ -24,10 +24,16 @@ Qlipper also represents my quest to learn JAX and make an autograd-based impleme
 
 ## Project Plans
 
-* Milestone 1: Mirrored implementation of existing [SLyGA](https://github.com/itchono/SLyGA) repository, except all in Python
-* Milestone 2: Getting autograd and jit to work so code becomes fast
+* Milestone 1: Mirrored implementation of existing [SLyGA](https://github.com/itchono/SLyGA) repository, except all in Python (DONE)
+* Milestone 2: Getting autograd and jit to work so code becomes fast (DONE)
 * Milestone 3: Expansion of the Q-Law to include 6-element static targeting
 * Milestone 4: Multibody transfers
+
+## Showcase
+
+Example transfer from my paper.
+![image](https://github.com/user-attachments/assets/69c0a23a-4525-49a5-b44b-8059276ea27f)
+![image](https://github.com/user-attachments/assets/f72b09dc-9dc0-4bb7-b4c3-4ffe047a128b)
 
 ## Install
 
