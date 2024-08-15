@@ -10,7 +10,7 @@ from qlipper.configuration import SimConfig
 from qlipper.sim import Params
 from qlipper.sim.dymamics_mee import dyn_mee
 from qlipper.sim.dynamics_cartesian import dyn_cartesian
-from qlipper.sim.ephemeris import generate_interpolant_arrays, lookup_body_id
+from qlipper.sim.ephemeris import generate_ephem_arrays, lookup_body_id
 from qlipper.sim.perturbations import PERTURBATIONS
 from qlipper.sim.propulsion import PROPULSION_MODELS
 from qlipper.steering import STEERING_LAWS
@@ -40,19 +40,19 @@ def prebake_sim_config(cfg: SimConfig) -> Params:
     )
 
     # Generate sun ephemeris interpolant
-    sun_t_sample, sun_r_sample = generate_interpolant_arrays(
+    sun_t_sample, sun_state_sample = generate_ephem_arrays(
         earth, sun, cfg.epoch_jd, cfg.t_span, num_ephem_samples
     )
-    sun_r_sample = sun_r_sample * 1e3  # convertfrom km to m
-    interp_coeffs = backward_hermite_coefficients(sun_t_sample, sun_r_sample.T)
+    sun_state_sample = sun_state_sample * 1e3  # convert from km to m
+    interp_coeffs = backward_hermite_coefficients(sun_t_sample, sun_state_sample.T)
     sun_ephem = CubicInterpolation(sun_t_sample, interp_coeffs)
 
     # Generate moon ephemeris interpolant
-    moon_t_sample, moon_r_sample = generate_interpolant_arrays(
+    moon_t_sample, moon_state_sample = generate_ephem_arrays(
         earth, moon, cfg.epoch_jd, cfg.t_span, num_ephem_samples
     )
-    moon_r_sample = moon_r_sample * 1e3  # convertfrom km to m
-    interp_coeffs = backward_hermite_coefficients(moon_t_sample, moon_r_sample.T)
+    moon_state_sample = moon_state_sample * 1e3  # convert from km to m
+    interp_coeffs = backward_hermite_coefficients(moon_t_sample, moon_state_sample.T)
     moon_ephem = CubicInterpolation(moon_t_sample, interp_coeffs)
 
     return Params(

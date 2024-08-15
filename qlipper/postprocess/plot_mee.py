@@ -8,10 +8,11 @@ from matplotlib.ticker import FuncFormatter
 from mpl_toolkits.mplot3d import Axes3D
 
 from qlipper.configuration import SimConfig
-from qlipper.constants import R_EARTH
+from qlipper.constants import MU_EARTH, R_EARTH
 from qlipper.converters import batch_mee_to_cartesian
 from qlipper.postprocess.interpolation import interpolate_mee
 from qlipper.postprocess.plotting_utils import plot_sphere
+from qlipper.sim.ephemeris import generate_ephem_arrays, lookup_body_id
 
 
 def plot_elements_mee(
@@ -85,6 +86,7 @@ def plot_elements_mee(
 def plot_trajectory_mee(
     t: ArrayLike,
     mee: ArrayLike,
+    cfg: SimConfig,
     plot_kwargs: dict[str, Any] = {},
     save_path: Path | None = None,
     save_kwargs: dict[str, Any] = {},
@@ -101,6 +103,8 @@ def plot_trajectory_mee(
         Time array.
     mee : ArrayLike
         Modified equinoctial elements array.
+    cfg : SimConfig
+        Simulation configuration.
     save_path : Path | None, optional
         Path to save the plot, by default None.
     save_kwargs : dict[str, Any], optional
@@ -113,7 +117,7 @@ def plot_trajectory_mee(
 
     # interpolate smootly in L
     t_interp, mee_interp = interpolate_mee(t, mee, seg_per_orbit=100)
-    cart = batch_mee_to_cartesian(mee_interp)
+    cart = batch_mee_to_cartesian(mee_interp, MU_EARTH)
 
     fig = plt.figure(figsize=(6, 6), constrained_layout=True)
     ax: Axes3D = fig.add_subplot(projection="3d")
@@ -150,6 +154,20 @@ def plot_trajectory_mee(
     ax.set_xlabel("X [m]")
     ax.set_ylabel("Y [m]")
     ax.set_zlabel("Z [m]")
+
+    # plot the moon, if applicable (in future: generalize)
+    if "moon_gravity" in cfg.perturbations:
+        # moon ephemeris
+        _, y = generate_ephem_arrays(
+            lookup_body_id("earth"),
+            lookup_body_id("moon"),
+            cfg.epoch_jd,
+            (0, cfg.t_span[-1]),
+            1000,
+        )
+        y = y * 1e3  # convert from km to m
+
+        ax.plot(y[0, :], y[1, :], y[2, :], label="Moon", color="gray", linestyle="--")
 
     ax.set_title("Earth Inertial Coordinates")
     # equal aspect ratio

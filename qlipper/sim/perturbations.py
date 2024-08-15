@@ -25,7 +25,7 @@ def moon_gravity(t: float, y: jax.Array, params: Params) -> jax.Array:
 
     """
 
-    moon_position_i = params.moon_ephem.evaluate(t)
+    moon_position_i = params.moon_ephem.evaluate(t)[:3]
 
     r = y[:3] - moon_position_i
 

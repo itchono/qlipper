@@ -19,6 +19,9 @@ def slyga_sun_ephemeris():
                 jnp.cos(angle),
                 jnp.sin(angle) * jnp.cos(epsilon),
                 jnp.sin(angle) * jnp.sin(epsilon),
+                0,
+                0,
+                0,
             ]
         )
         pos = dir * 149597870691
@@ -32,8 +35,8 @@ def test_eclipse_curtis():
 
     sun_position = jnp.array([-11_747_041, 139_486_985, 60_472_278]) * 1e3
 
-    fake_cubic_interpolation = SimpleNamespace(evaluate=lambda t: sun_position)
+    fake_ci = SimpleNamespace(evaluate=lambda t: sun_position)
 
-    fake_params = Params(0, 0, 0, 0, 0, 0, 0, fake_cubic_interpolation)
+    fake_params = Params(0, 0, 0, 0, 0, 0, 0, fake_ci, fake_ci)
 
     assert simple_eclipse(0, state, fake_params)

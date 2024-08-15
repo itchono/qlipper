@@ -5,7 +5,7 @@ from jax import Array
 from jax.typing import ArrayLike
 
 from qlipper.constants import MU_EARTH
-from qlipper.converters import cartesian_to_mee, rot_inertial_lvlh
+from qlipper.converters import rot_inertial_lvlh
 from qlipper.sim.params import Params
 
 CARTESIAN_DYN_SCALING = 1e3
@@ -48,8 +48,7 @@ def dyn_cartesian(
     y = y * CARTESIAN_DYN_SCALING
 
     # Control
-    mee = cartesian_to_mee(y)
-    alpha, beta = steering_law(t, mee, params)
+    alpha, beta = steering_law(t, y, params)
 
     # Acceleration from propulsion (LVLH frame)
     acc_lvlh = propulsion_model(t, y, params, alpha, beta)

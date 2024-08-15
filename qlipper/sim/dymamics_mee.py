@@ -134,18 +134,18 @@ def dyn_mee(
     # Scaling
     y = y.at[0].mul(P_SCALING)
 
-    # Convert state to cartesian for thrust model
-    cart = mee_to_cartesian(y)
+    # Convert state to cartesian for usage
+    cart = mee_to_cartesian(y, MU_EARTH)
 
     # Control
-    alpha, beta = steering_law(t, y, params)
+    alpha, beta = steering_law(t, cart, params)
 
     # Acceleration from propulsion
     acc_lvlh = propulsion_model(t, cart, params, alpha, beta)
 
     # Perturbations
     for perturbation in perturbations:
-        acc_lvlh += perturbation(t, y, params)
+        acc_lvlh += perturbation(t, cart, params)
 
     # Gauss variational equation
     dy_dt = gve_mee(y, acc_lvlh)

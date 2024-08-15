@@ -4,7 +4,7 @@ from diffrax import Event
 from jax import Array
 
 from qlipper.configuration import SimConfig
-from qlipper.constants import P_SCALING, R_EARTH, R_MOON
+from qlipper.constants import MU_EARTH, P_SCALING, R_EARTH, R_MOON
 from qlipper.converters import cartesian_to_mee, mee_to_cartesian
 from qlipper.sim import Params
 from qlipper.sim.dynamics_cartesian import CARTESIAN_DYN_SCALING
@@ -28,14 +28,14 @@ def call_with_unscaled_cart(f: Callable) -> Callable:
 
 def call_cvt_mee_to_cart(f: Callable) -> Callable:
     def wrapper(t: float, y: Array, args: Params, **kwargs) -> Array:
-        return f(t, mee_to_cartesian(y), args)
+        return f(t, mee_to_cartesian(y, MU_EARTH), args)
 
     return wrapper
 
 
 def call_cvt_cart_to_mee(f: Callable) -> Callable:
     def wrapper(t: float, y: Array, args: Params, **kwargs) -> Array:
-        return f(t, cartesian_to_mee(y), args)
+        return f(t, cartesian_to_mee(y, MU_EARTH), args)
 
     return wrapper
 
@@ -104,7 +104,7 @@ def crashed_into_moon(t: float, y: Array, args: Params, **kwargs) -> bool:
     bool
         True if we crash into the Moon
     """
-    r = y[:3] - args.moon_ephem.evaluate(t)
+    r = y[:3] - args.moon_ephem.evaluate(t)[:3]
     return r @ r < R_MOON**2
 
 

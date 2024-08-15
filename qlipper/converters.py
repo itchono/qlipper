@@ -1,8 +1,8 @@
+from functools import partial
+
 import jax
 import jax.numpy as jnp
 from jax.typing import ArrayLike
-
-from qlipper.constants import MU_EARTH
 
 
 @jax.jit
@@ -54,8 +54,8 @@ def steering_to_lvlh(alpha: float, beta: float) -> jax.Array:
     return dir_lvlh
 
 
-@jax.jit
-def mee_to_cartesian(mee: ArrayLike) -> jax.Array:
+@partial(jax.jit, static_argnums=(1,))
+def mee_to_cartesian(mee: ArrayLike, mu: float) -> jax.Array:
     """
     Convert modified equinoctial elements to Cartesian elements.
 
@@ -63,6 +63,9 @@ def mee_to_cartesian(mee: ArrayLike) -> jax.Array:
     ----------
     mee : ArrayLike
         Modified equinoctial elements [p(m), f, g, h, k, L(rad)].
+    mu : float
+        Gravitational parameter of the central body;
+        changing mu triggers a JIT recompile.
 
     Returns
     -------
@@ -99,7 +102,7 @@ def mee_to_cartesian(mee: ArrayLike) -> jax.Array:
     vel = (
         1
         / s_sq
-        * jnp.sqrt(MU_EARTH / p)
+        * jnp.sqrt(mu / p)
         * jnp.array(
             [
                 -(
@@ -126,8 +129,8 @@ def mee_to_cartesian(mee: ArrayLike) -> jax.Array:
     return jnp.concatenate([pos, vel])
 
 
-@jax.jit
-def cartesian_to_mee(cart: ArrayLike) -> jax.Array:
+@partial(jax.jit, static_argnums=(1,))
+def cartesian_to_mee(cart: ArrayLike, mu: float) -> jax.Array:
     """
     Convert Cartesian elements to modified equinoctial elements.
 
@@ -140,6 +143,8 @@ def cartesian_to_mee(cart: ArrayLike) -> jax.Array:
     -------
     mee : Array
         Modified equinoctial elements [p(m), f, g, h, k, L(rad)].
+    mu : float
+        Gravitational parameter of the central body.
 
     Notes
     -----
@@ -155,14 +160,14 @@ def cartesian_to_mee(cart: ArrayLike) -> jax.Array:
     hmag = jnp.linalg.norm(hvec, ord=2)
     hhat = hvec / hmag
     vhat = (rmag * vel - rdv * rhat) / hmag
-    p = hmag**2 / MU_EARTH
+    p = hmag**2 / mu
     k = hhat[0] / (1 + hhat[2])
     h = -hhat[1] / (1 + hhat[2])
     kk = k**2
     hh = h**2
     s2 = 1 + hh + kk
     tkh = 2 * k * h
-    ecc = jnp.cross(vel, hvec) / MU_EARTH - rhat
+    ecc = jnp.cross(vel, hvec) / mu - rhat
     fhat = jnp.array([1 - kk + hh, tkh, -2 * k])
     ghat = jnp.array([tkh, 1 + kk - hh, 2 * h])
     fhat = fhat / s2
@@ -174,8 +179,8 @@ def cartesian_to_mee(cart: ArrayLike) -> jax.Array:
     return jnp.array([p, f, g, h, k, L])
 
 
-@jax.jit
-def batch_cartesian_to_mee(cart: ArrayLike) -> jax.Array:
+@partial(jax.jit, static_argnums=(1,))
+def batch_cartesian_to_mee(cart: ArrayLike, mu: float) -> jax.Array:
     """
     Vmapped version of cartesian_to_mee, which ensures
     that true longitude is unwrapped correctly.
@@ -184,13 +189,15 @@ def batch_cartesian_to_mee(cart: ArrayLike) -> jax.Array:
     ----------
     cart : ArrayLike
         Cartesian elements (N, 6)
+    mu : float
+        Gravitational parameter of the central body.
 
     Returns
     -------
     mee : Array
         Modified equinoctial elements (N, 6)
     """
-    mee = jax.vmap(cartesian_to_mee)(cart)
+    mee = jax.vmap(partial(cartesian_to_mee, mu=mu))(cart)
 
     # unwrap true longitude
     l_unwrap = jnp.unwrap(mee[:, 5])
@@ -198,22 +205,26 @@ def batch_cartesian_to_mee(cart: ArrayLike) -> jax.Array:
     return jnp.column_stack((mee[:, :5], l_unwrap))
 
 
-@jax.jit
-def batch_mee_to_cartesian(mee: ArrayLike) -> jax.Array:
+@partial(jax.jit, static_argnums=(1,))
+def batch_mee_to_cartesian(mee: ArrayLike, mu: float) -> jax.Array:
     """
     Vmapped version of mee_to_cartesian.
+
+    Does nothing special, just for consistency with its sibling function.
 
     Parameters
     ----------
     mee : ArrayLike
         Modified equinoctial elements (N, 6)
+    mu : float
+        Gravitational parameter of the central body.
 
     Returns
     -------
     cart : Array
         Cartesian elements (N, 6)
     """
-    return jax.vmap(mee_to_cartesian)(mee)
+    return jax.vmap(partial(mee_to_cartesian, mu=mu))(mee)
 
 
 @jax.jit
