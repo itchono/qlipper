@@ -9,7 +9,7 @@ from qlipper.converters import mee_to_cartesian
 from qlipper.run.prebake import Params
 
 
-def gve_coefficients(state: ArrayLike) -> tuple[Array, Array]:
+def gve_coefficients(state: ArrayLike, mu: float) -> tuple[Array, Array]:
     """
     Gauss variational equation coefficients for
     modified equinoctial elements.
@@ -33,7 +33,7 @@ def gve_coefficients(state: ArrayLike) -> tuple[Array, Array]:
     # shorthand quantities
     q = 1 + f * jnp.cos(L) + g * jnp.sin(L)
 
-    leading_coefficient = 1 / q * jnp.sqrt(p / MU_EARTH)
+    leading_coefficient = 1 / q * jnp.sqrt(p / mu)
 
     # A-matrix
     A = (
@@ -59,7 +59,7 @@ def gve_coefficients(state: ArrayLike) -> tuple[Array, Array]:
     )
 
     # b-vector
-    b = jnp.array([0, 0, 0, 0, 0, q**2 * jnp.sqrt(MU_EARTH * p) / p**2])
+    b = jnp.array([0, 0, 0, 0, 0, q**2 * jnp.sqrt(mu * p) / p**2])
 
     return A, b
 
@@ -82,7 +82,7 @@ def gve_mee(state: ArrayLike, acc_lvlh: ArrayLike) -> Array:
     """
 
     # Gauss variational equation coefficients
-    A, b = gve_coefficients(state)
+    A, b = gve_coefficients(state, MU_EARTH)
 
     # time derivative of state vector
     dstate_dt = A @ acc_lvlh + b

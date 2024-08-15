@@ -40,9 +40,11 @@ def approx_max_roc(y_mee: ArrayLike, characteristic_accel: float, mu: float) -> 
     d_g_max = 2 * jnp.sqrt(p / mu)
 
     # singularity detection for d_h_max and d_k_max
-    singularity_h = jnp.abs(1 + h**2 + k**2) < 1e-6
+    singularity_h = jnp.abs(jnp.sqrt(1 - g**2) + f) < 1e-6
     d1 = cond(
-        singularity_h, lambda: 1e-6 * jnp.sign(1 + h**2 + k**2), lambda: 1 + h**2 + k**2
+        singularity_h,
+        lambda: 1e-6 * jnp.sign(jnp.sqrt(1 - g**2) + f),
+        lambda: jnp.sqrt(1 - g**2) + f,
     )
 
     singularity_k = jnp.abs(jnp.sqrt(1 - f**2) + g) < 1e-6
@@ -94,7 +96,7 @@ def _q_law_mee(
     S = jnp.array([1 / P_SCALING, 1, 1, 1, 1])
     d_oe_max = approx_max_roc(y_mee, characteristic_accel, mu)
 
-    A, _ = gve_coefficients(y_mee)
+    A, _ = gve_coefficients(y_mee, mu)
 
     oe = y_mee[:5]
     oe_hat = target[:5]
