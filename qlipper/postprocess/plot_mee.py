@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any
 
+import jax
 import numpy as np
 from jax.typing import ArrayLike
 from matplotlib import pyplot as plt
@@ -8,10 +9,11 @@ from matplotlib.ticker import FuncFormatter
 from mpl_toolkits.mplot3d import Axes3D
 
 from qlipper.configuration import SimConfig
-from qlipper.constants import MU_EARTH, R_EARTH
-from qlipper.converters import batch_mee_to_cartesian
+from qlipper.constants import MU_EARTH, MU_MOON, R_EARTH
+from qlipper.converters import batch_cartesian_to_mee, batch_mee_to_cartesian
 from qlipper.postprocess.interpolation import interpolate_mee
 from qlipper.postprocess.plotting_utils import plot_sphere
+from qlipper.run.prebake import prebake_sim_config
 from qlipper.sim.ephemeris import generate_ephem_arrays, lookup_body_id
 
 
@@ -41,6 +43,17 @@ def plot_elements_mee(
     show : bool, optional
         Whether to show the plot, default False
     """
+
+    # HACK: plotting wrt to Moon when applicable
+    if cfg.steering_law == "bbq_law":
+        params = prebake_sim_config(cfg)
+
+        moon_state = jax.vmap(params.moon_ephem.evaluate)(t)
+        cart_state = batch_mee_to_cartesian(y, MU_EARTH)
+
+        rel_state = cart_state - moon_state
+        y = batch_cartesian_to_mee(rel_state, MU_MOON)
+
     tof_days = t / 86400
 
     plt.rcParams.update({"text.usetex": True, "font.family": "serif"})

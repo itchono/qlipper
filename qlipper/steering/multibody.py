@@ -63,23 +63,22 @@ def bbq_law(t: float, y: ArrayLike, params: Params) -> tuple[float, float]:
 
     moon_state = params.moon_ephem.evaluate(t)
 
+    mee_of_moon = cartesian_to_mee(moon_state, MU_EARTH)
     mee_rel_moon = cartesian_to_mee(y - moon_state, MU_MOON)
     mee_rel_earth = cartesian_to_mee(y, MU_EARTH)
 
     # Earth guidance
     angles_earth = _q_law_mee(
         mee_rel_earth,
-        params.y_target,
+        mee_of_moon,
         params.w_oe,
         params.characteristic_accel,
         MU_EARTH,
     )
 
     # Moon guidance
-    moon_target = jnp.array([5000e3, 0, 0, 0, 0, 0])
-
     angles_moon = _q_law_mee(
-        mee_rel_moon, moon_target, params.w_oe, params.characteristic_accel, MU_MOON
+        mee_rel_moon, params.y_target, params.w_oe, params.characteristic_accel, MU_MOON
     )
 
     # Blend
@@ -90,6 +89,6 @@ def bbq_law(t: float, y: ArrayLike, params: Params) -> tuple[float, float]:
 
     # n = b * n_earth + (1 - b) * n_moon  # TODO: this must be SLERPED
 
-    chosen_dir = cond(b < 0.5, lambda: n_moon, lambda: n_earth)
+    chosen_dir = cond(b < 0.7, lambda: n_moon, lambda: n_earth)
 
     return lvlh_to_steering(chosen_dir)

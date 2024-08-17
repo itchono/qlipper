@@ -4,7 +4,7 @@ from diffrax import Event
 from jax import Array
 
 from qlipper.configuration import SimConfig
-from qlipper.constants import MU_EARTH, P_SCALING, R_EARTH, R_MOON
+from qlipper.constants import MU_EARTH, MU_MOON, P_SCALING, R_EARTH, R_MOON
 from qlipper.converters import cartesian_to_mee, mee_to_cartesian
 from qlipper.sim import Params
 from qlipper.sim.dynamics_cartesian import CARTESIAN_DYN_SCALING
@@ -14,6 +14,10 @@ from qlipper.sim.loss import l2_loss
 # helper functions for converting between different dynamics
 def call_with_unscaled_mee(f: Callable) -> Callable:
     def wrapper(t: float, y: Array, args: Params, **kwargs) -> Array:
+        """
+        Expects y to be modified equinoctial elements, with
+        its semilatus rectum scaled
+        """
         return f(t, y.at[0].mul(P_SCALING), args)
 
     return wrapper
@@ -21,6 +25,9 @@ def call_with_unscaled_mee(f: Callable) -> Callable:
 
 def call_with_unscaled_cart(f: Callable) -> Callable:
     def wrapper(t: float, y: Array, args: Params, **kwargs) -> Array:
+        """
+        Expects y to be order unity scaled cartesian elements
+        """
         return f(t, y * CARTESIAN_DYN_SCALING, args)
 
     return wrapper
@@ -28,6 +35,9 @@ def call_with_unscaled_cart(f: Callable) -> Callable:
 
 def call_cvt_mee_to_cart(f: Callable) -> Callable:
     def wrapper(t: float, y: Array, args: Params, **kwargs) -> Array:
+        """
+        Expects y to be modified equinoctial elements (outer layer)
+        """
         return f(t, mee_to_cartesian(y, MU_EARTH), args)
 
     return wrapper
@@ -35,7 +45,24 @@ def call_cvt_mee_to_cart(f: Callable) -> Callable:
 
 def call_cvt_cart_to_mee(f: Callable) -> Callable:
     def wrapper(t: float, y: Array, args: Params, **kwargs) -> Array:
+        """
+        Expects y to be cartesian elements (outer layer)
+        """
         return f(t, cartesian_to_mee(y, MU_EARTH), args)
+
+    return wrapper
+
+
+def call_cvt_mee_to_lunar(f: Callable) -> Callable:
+    def wrapper(t: float, y: Array, args: Params, **kwargs) -> Array:
+        """
+        Expects y to be earth centric mees
+        """
+        cart_state = mee_to_cartesian(y, MU_EARTH)
+        moon_state = args.moon_ephem.evaluate(t)
+        rel_mee = cartesian_to_mee(cart_state - moon_state, MU_MOON)
+
+        return f(t, rel_mee, args)
 
     return wrapper
 
@@ -138,5 +165,9 @@ def get_termination_events(cfg: SimConfig) -> Event:
             ]
         case _:
             raise ValueError(f"Unknown dynamics: {cfg.dynamics}")
+
+    # HACK: convergence wrt Moon
+    if cfg.steering_law == "bbq_law":
+        fcn_list[2] = call_cvt_mee_to_lunar(fcn_list[2])
 
     return Event(fcn_list)

@@ -8,7 +8,7 @@ from qlipper.constants import MU_EARTH
 from qlipper.converters import rot_inertial_lvlh
 from qlipper.sim.params import Params
 
-CARTESIAN_DYN_SCALING = 1e3
+CARTESIAN_DYN_SCALING = jnp.array([1e6, 1e6, 1e6, 1e3, 1e3, 1e3])
 
 
 def dyn_cartesian(
