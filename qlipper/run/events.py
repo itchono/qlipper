@@ -132,7 +132,7 @@ def crashed_into_moon(t: float, y: Array, args: Params, **kwargs) -> bool:
         True if we crash into the Moon
     """
     r = y[:3] - args.moon_ephem.evaluate(t)[:3]
-    return r @ r < R_MOON**2
+    return r @ r < (1.5 * R_MOON) ** 2
 
 
 def get_termination_events(cfg: SimConfig) -> Event:
@@ -150,24 +150,27 @@ def get_termination_events(cfg: SimConfig) -> Event:
         The event to be passed to the ODE solver
     """
 
+    # HACK: convergence wrt Moon
+    conv = (
+        call_cvt_mee_to_lunar(guidance_converged)
+        if cfg.steering_law == "bbq_law"
+        else guidance_converged
+    )
+
     match cfg.dynamics:
         case "mee":
             fcn_list = [
-                call_with_unscaled_mee(guidance_converged),
+                call_with_unscaled_mee(conv),
                 call_with_unscaled_mee(call_cvt_mee_to_cart(crashed_into_earth)),
                 call_with_unscaled_mee(call_cvt_mee_to_cart(crashed_into_moon)),
             ]
         case "cartesian":
             fcn_list = [
-                call_with_unscaled_cart(call_cvt_cart_to_mee(guidance_converged)),
+                call_with_unscaled_cart(call_cvt_cart_to_mee(conv)),
                 call_with_unscaled_cart(crashed_into_earth),
                 call_with_unscaled_cart(crashed_into_moon),
             ]
         case _:
             raise ValueError(f"Unknown dynamics: {cfg.dynamics}")
-
-    # HACK: convergence wrt Moon
-    if cfg.steering_law == "bbq_law":
-        fcn_list[2] = call_cvt_mee_to_lunar(fcn_list[2])
 
     return Event(fcn_list)

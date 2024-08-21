@@ -144,7 +144,11 @@ def q_law(_: float, y: ArrayLike, params: Params) -> tuple[float, float]:
 
 
 def _rq_law_mee(
-    y_mee: ArrayLike, target: ArrayLike, w_oe: ArrayLike, characteristic_accel: float
+    y_mee: ArrayLike,
+    target: ArrayLike,
+    w_oe: ArrayLike,
+    characteristic_accel: float,
+    mu: float,
 ) -> tuple[float, float]:
     """
     Rendezvous capable Q-law, as formulated by Narayanaswamy (2023).
@@ -160,4 +164,4 @@ def _rq_law_mee(
     augmentation = 2 / jnp.pi * jnp.arctan(delta_L) * target[0]
     target = target.at[0].add(augmentation)
 
-    return _q_law_mee(y_mee, target, w_oe, characteristic_accel)
+    return _q_law_mee(y_mee, target, w_oe, characteristic_accel, mu)

@@ -22,6 +22,9 @@ def prebake_sim_config(cfg: SimConfig) -> Params:
     """
     Prebake the SimConfig struct into a SimInternalConfig struct
     that can be passed into the actual problem being solved.
+
+    TODO: make the ephemeris generation available as its
+    own function, so that it can be reused in other places
     """
 
     # Generate ephemeris interpolant arrays

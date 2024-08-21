@@ -18,16 +18,18 @@ from qlipper.configuration import SimConfig
 from qlipper.constants import (
     CONVERGED_BLOCK_LETTERS,
     MU_EARTH,
+    MU_MOON,
     OUTPUT_DIR,
     P_SCALING,
     QLIPPER_BLOCK_LETTERS,
 )
-from qlipper.converters import batch_cartesian_to_mee, mee_to_cartesian
-from qlipper.run.events import get_termination_events
-from qlipper.run.prebake import (
-    prebake_ode,
-    prebake_sim_config,
+from qlipper.converters import (
+    batch_cartesian_to_mee,
+    cartesian_to_mee,
+    mee_to_cartesian,
 )
+from qlipper.run.events import get_termination_events
+from qlipper.run.prebake import Params, prebake_ode, prebake_sim_config
 from qlipper.run.recording import temp_log_to_file
 from qlipper.sim.dynamics_cartesian import CARTESIAN_DYN_SCALING
 from qlipper.sim.loss import l2_loss
@@ -56,6 +58,35 @@ def preprocess_y0(cfg: SimConfig) -> Array:
             return cfg.y0.at[0].divide(P_SCALING)
         case _:
             raise ValueError(f"Unsupported dynamics: {cfg.dynamics}")
+
+
+def final_error(yf: Array, tf: Array, cfg: SimConfig, params: Params) -> float:
+    """
+    Calculate the final error of the simulation.
+
+    Parameters
+    ----------
+    yf : Array
+        Final state vector in MEE
+    tf : Array
+        Final time (s)
+    cfg : SimConfig
+        Simulation configuration.
+    params : Params
+        Prebaked parameters.
+
+    Returns
+    -------
+    float
+        Final error.
+    """
+
+    if cfg.steering_law == "bbq_law":
+        cart_state = mee_to_cartesian(yf, MU_EARTH)
+        moon_state = params.moon_ephem.evaluate(tf)
+        yf = cartesian_to_mee(cart_state - moon_state, MU_MOON)
+
+    return l2_loss(yf, params.y_target, params.w_oe)
 
 
 def extract_solution_arrays(sol: Solution, cfg: SimConfig) -> tuple[Array, Array]:
@@ -140,17 +171,17 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
             Tsit5(),
             *cfg.t_span,
             y0=y0,
-            dt0=cfg.t_span[1] / 100,
+            dt0=1e2,
             args=ode_args,
-            max_steps=int(1e6),
+            max_steps=int(1e7),
             stepsize_controller=PIDController(
                 rtol=1e-6,
                 atol=1e-8,
                 pcoeff=0.3,
                 icoeff=0.3,
                 dcoeff=0,
-                dtmin=1,
-                dtmax=1e3,
+                dtmin=1e1,
+                dtmax=1e4,
                 force_dtmin=True,
             ),
             event=end_event,
@@ -172,7 +203,9 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
                 logger.info("NOT CONVERGED - reached end of integration interval")
             case _:
                 logger.warning(f"NOT CONVERGED - {solution.result}")
-        logger.info(f"Final Error: {l2_loss(sol_y[-1], cfg.y_target, cfg.w_oe):.5f}")
+        logger.info(
+            f"Final Error: {final_error(sol_y[-1], sol_t[-1], cfg, ode_args):.5f}"
+        )
         run_end = datetime.now()
         run_duration = run_end - run_start
         logger.info(f"Completed in {run_duration}")

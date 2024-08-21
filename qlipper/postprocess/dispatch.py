@@ -7,7 +7,7 @@ from jax.typing import ArrayLike
 from qlipper.configuration import SimConfig
 from qlipper.constants import MU_EARTH, OUTPUT_DIR
 from qlipper.converters import batch_mee_to_cartesian
-from qlipper.postprocess.plot_cart import plot_trajectory_cart
+from qlipper.postprocess.plot_cart import plot_cart_wrt_moon, plot_trajectory_cart
 from qlipper.postprocess.plot_mee import plot_elements_mee, plot_trajectory_mee
 
 logger = logging.getLogger(__name__)
@@ -57,6 +57,23 @@ def postprocess_run(
     plot_elements_mee(
         t, y, cfg, save_path=plot_save_dir / "elements.pdf", show=show_plots
     )
+
+    if cfg.steering_law == "bbq_law":
+        plot_cart_wrt_moon(
+            t,
+            y_cart,
+            cfg,
+            save_path=plot_save_dir / "trajectory_moon.pdf",
+            show=show_plots,
+        )
+
+        plot_cart_wrt_moon(
+            t[-int(len(t) * 0.1) :],
+            y_cart[-int(len(t) * 0.1) :, :],
+            cfg,
+            save_path=plot_save_dir / "trajectory_moon_close.pdf",
+            show=show_plots,
+        )
 
     logger.info(f"Postprocessing complete for run: {run_id}")
 
