@@ -16,7 +16,10 @@ def periapsis_penalty(y_mee: ArrayLike, rp_min: float, pen_param: float) -> floa
     f = y_mee[1]
     g = y_mee[2]
 
-    rp = p * (1 - jnp.sqrt(f**2 + g**2)) / (1 - f**2 - g**2)
+    ecc = jnp.sqrt(f**2 + g**2)
+    a = p / (1 - ecc**2)
+    rp = a * (1 - ecc)
+    # TODO: considerations for hyperbolic orbits (this is wrong rn)
 
     penalty = jnp.exp((1 - rp / rp_min) * pen_param)
 
@@ -118,7 +121,12 @@ def _q_law_mee(
 
     Xi_E = 2 * (oe - oe_hat) / d_oe_max
 
-    D = A[:5, :].T @ (w_oe * S * Xi_E)
+    # penalty
+    P, dPdoe = jax.value_and_grad(periapsis_penalty)(y_mee, 7000e3, 2)
+    w_p = 0.5
+    Xi_P = dPdoe[:5] * ((oe - oe_hat) / d_oe_max) ** 2
+
+    D = A[:5, :].T @ (w_oe * S * (w_p * Xi_P + (1 + w_p * P) * Xi_E))
 
     alpha = jnp.atan2(-D[0], -D[1])
     beta = jnp.atan2(-D[2], jnp.linalg.norm(D[:2]))
