@@ -37,6 +37,6 @@ def test_eclipse_curtis():
 
     fake_ci = SimpleNamespace(evaluate=lambda t: sun_position)
 
-    fake_params = Params(0, 0, 0, 0, 0, 0, 0, fake_ci, fake_ci)
+    fake_params = Params(0, 0, 0, 0, 0, 0, 0, 0, fake_ci, fake_ci)
 
     assert simple_eclipse(0, state, fake_params)

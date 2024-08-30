@@ -58,7 +58,7 @@ def postprocess_run(
         t, y, cfg, save_path=plot_save_dir / "elements.pdf", show=show_plots
     )
 
-    if cfg.steering_law == "bbq_law":
+    if cfg.steering_law in ["bbq_law", "qbbq_law"]:
         plot_cart_wrt_moon(
             t,
             y_cart,
@@ -66,12 +66,21 @@ def postprocess_run(
             save_path=plot_save_dir / "trajectory_moon.pdf",
             show=show_plots,
         )
+        CLOSE_FRAC = 0.02
 
         plot_cart_wrt_moon(
-            t[-int(len(t) * 0.1) :],
-            y_cart[-int(len(t) * 0.1) :, :],
+            t[-int(len(t) * CLOSE_FRAC) :],
+            y_cart[-int(len(t) * CLOSE_FRAC) :, :],
             cfg,
             save_path=plot_save_dir / "trajectory_moon_close.pdf",
+            show=show_plots,
+        )
+
+        plot_elements_mee(
+            t[-int(len(t) * CLOSE_FRAC) :],
+            y[-int(len(t) * CLOSE_FRAC) :, :],
+            cfg,
+            save_path=plot_save_dir / "elements_close.pdf",
             show=show_plots,
         )
 

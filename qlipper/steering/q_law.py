@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 from jax import Array
 from jax.lax import cond
@@ -7,6 +8,19 @@ from qlipper.constants import MU_EARTH, P_SCALING
 from qlipper.converters import cartesian_to_mee
 from qlipper.sim import Params
 from qlipper.sim.dymamics_mee import gve_coefficients
+
+
+@jax.jit
+def periapsis_penalty(y_mee: ArrayLike, rp_min: float, pen_param: float) -> float:
+    p = y_mee[0]
+    f = y_mee[1]
+    g = y_mee[2]
+
+    rp = p * (1 - jnp.sqrt(f**2 + g**2)) / (1 - f**2 - g**2)
+
+    penalty = jnp.exp((1 - rp / rp_min) * pen_param)
+
+    return penalty
 
 
 def approx_max_roc(y_mee: ArrayLike, characteristic_accel: float, mu: float) -> Array:
@@ -40,18 +54,19 @@ def approx_max_roc(y_mee: ArrayLike, characteristic_accel: float, mu: float) -> 
     d_g_max = 2 * jnp.sqrt(p / mu)
 
     # singularity detection for d_h_max and d_k_max
-    singularity_h = jnp.abs(jnp.sqrt(1 - g**2) + f) < 1e-6
+    # small modification to always take abs of sqrt to avoid problems with hyperbolic orbits
+    singularity_h = jnp.abs(jnp.sqrt(jnp.abs(1 - g**2)) + f) < 1e-6
     d1 = cond(
         singularity_h,
-        lambda: 1e-6 * jnp.sign(jnp.sqrt(1 - g**2) + f),
-        lambda: jnp.sqrt(1 - g**2) + f,
+        lambda: 1e-6 * jnp.sign(jnp.sqrt(jnp.abs(1 - g**2)) + f),
+        lambda: jnp.sqrt(jnp.abs(1 - g**2)) + f,
     )
 
-    singularity_k = jnp.abs(jnp.sqrt(1 - f**2) + g) < 1e-6
+    singularity_k = jnp.abs(jnp.sqrt(jnp.abs(1 - f**2)) + g) < 1e-6
     d2 = cond(
         singularity_k,
-        lambda: 1e-6 * jnp.sign(jnp.sqrt(1 - f**2) + g),
-        lambda: jnp.sqrt(1 - f**2) + g,
+        lambda: 1e-6 * jnp.sign(jnp.sqrt(jnp.abs(1 - f**2)) + g),
+        lambda: jnp.sqrt(jnp.abs(1 - f**2)) + g,
     )
 
     d_h_max = 1 / 2 * jnp.sqrt(p / mu) * (1 + h**2 + k**2) / d1
@@ -154,14 +169,16 @@ def _rq_law_mee(
     Rendezvous capable Q-law, as formulated by Narayanaswamy (2023).
 
     Augments target p state based on difference in true longitude with target.
-
-    NOT YET TESTED
     """
     # Augment target set
-    L_curr = y_mee[5]
-    L_target = target[5]
-    delta_L = L_target - L_curr
-    augmentation = 2 / jnp.pi * jnp.arctan(delta_L) * target[0]
+    L_curr = y_mee[5] % (2 * jnp.pi)
+    L_target = target[5] % (2 * jnp.pi)
+    delta_L = jnp.atan2(
+        jnp.sin(L_target - L_curr), jnp.cos(L_target - L_curr)
+    )  # [-pi, pi]
+    augmentation = (
+        2 / jnp.pi * jnp.arctan(delta_L) * target[0] * 0.1
+    )  # jank, prevents the change from being too large
     target = target.at[0].add(augmentation)
 
     return _q_law_mee(y_mee, target, w_oe, characteristic_accel, mu)

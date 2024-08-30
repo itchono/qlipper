@@ -63,6 +63,7 @@ def prebake_sim_config(cfg: SimConfig) -> Params:
         conv_tol=cfg.conv_tol,
         w_oe=cfg.w_oe,
         w_penalty=cfg.w_penalty,
+        pen_param=1.0,
         kappa=jnp.deg2rad(cfg.kappa),
         characteristic_accel=cfg.characteristic_accel,
         epoch_jd=cfg.epoch_jd,

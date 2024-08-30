@@ -45,7 +45,7 @@ def plot_elements_mee(
     """
 
     # HACK: plotting wrt to Moon when applicable
-    if cfg.steering_law == "bbq_law":
+    if cfg.steering_law in ["bbq_law", "qbbq_law"]:
         params = prebake_sim_config(cfg)
 
         moon_state = jax.vmap(params.moon_ephem.evaluate)(t)

@@ -17,6 +17,7 @@ class Params(NamedTuple):
     conv_tol: float
     w_oe: Array
     w_penalty: float
+    pen_param: float
     kappa: float
     characteristic_accel: float
     epoch_jd: float

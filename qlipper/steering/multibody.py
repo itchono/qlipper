@@ -2,10 +2,16 @@ import jax
 import jax.numpy as jnp
 from jax.typing import ArrayLike
 
-from qlipper.constants import MU_EARTH, MU_MOON
+from qlipper.constants import MU_EARTH, MU_MOON, R_EARTH, R_MOON
 from qlipper.converters import cartesian_to_mee, lvlh_to_steering, steering_to_lvlh
 from qlipper.run.prebake import Params
-from qlipper.steering.q_law import _q_law_mee, _rq_law_mee
+from qlipper.steering.q_law import (
+    _q_law_mee,
+    _rq_law_mee,
+    approx_max_roc,
+    gve_coefficients,
+    periapsis_penalty,
+)
 
 
 def blending_weight(t: float, y: ArrayLike, params: Params) -> float:
@@ -83,6 +89,93 @@ def slerp(a: ArrayLike, b: ArrayLike, t: float) -> ArrayLike:
     return s0 * v0 + s1 * v1
 
 
+def qbbq_law(t: float, y: ArrayLike, params: Params) -> tuple[float, float]:
+    """
+    Q-law with blending at the Q function level, not yet working.
+
+    Parameters
+    ----------
+    t : float
+        Time.
+    y : ArrayLike
+        Current state vector.
+    params : Params
+        Simulation parameters.
+
+    Returns
+    -------
+    alpha : float
+        Steering angle.
+    beta : float
+        Steering angle.
+    """
+
+    moon_state = params.moon_ephem.evaluate(t)
+
+    mee_of_moon = cartesian_to_mee(moon_state, MU_EARTH)
+    mee_rel_moon = cartesian_to_mee(y - moon_state, MU_MOON)
+    mee_rel_earth = cartesian_to_mee(y, MU_EARTH)
+
+    # EARTH
+    S_earth = jnp.array([1 / R_EARTH, 1, 1, 1, 1])
+    d_oe_max_earth = approx_max_roc(
+        mee_rel_earth, params.characteristic_accel, MU_EARTH
+    )
+    A_earth, _ = gve_coefficients(mee_rel_earth, MU_EARTH)
+
+    # Augment target set
+    L_curr = mee_rel_earth[5] % (2 * jnp.pi)
+    L_target = mee_of_moon[5] % (2 * jnp.pi)
+    delta_L = jnp.atan2(
+        jnp.sin(L_target - L_curr), jnp.cos(L_target - L_curr)
+    )  # [-pi, pi]
+    augmentation = (
+        2 / jnp.pi * jnp.arctan(delta_L) * mee_of_moon[0] * 0.1
+    )  # jank, prevents the change from being too large
+    target_earth = mee_of_moon.at[0].add(augmentation)
+
+    Xi_E_earth = 2 * (mee_rel_earth[:5] - target_earth[:5]) / d_oe_max_earth
+
+    # periapsis constraint
+    P, dPdoe = jax.value_and_grad(periapsis_penalty)(mee_rel_earth, R_EARTH, 2)
+    Xi_P_earth = (
+        dPdoe[:5] * ((mee_rel_earth[:5] - target_earth[:5]) / d_oe_max_earth) ** 2
+    )
+
+    D_earth = A_earth[:5, :].T @ (
+        params.w_oe
+        * S_earth
+        * (params.w_penalty * Xi_P_earth + (1 + params.w_penalty * P) * Xi_E_earth)
+    )
+
+    # MOON
+    S_moon = jnp.array([1 / R_MOON, 1, 1, 1, 1])
+    d_oe_max_moon = approx_max_roc(mee_rel_moon, params.characteristic_accel, MU_MOON)
+    A_moon, _ = gve_coefficients(mee_rel_moon, MU_MOON)
+    Xi_E_moon = 2 * (mee_rel_moon[:5] - params.y_target[:5]) / d_oe_max_moon
+
+    # periapsis constraint
+    P, dPdoe = jax.value_and_grad(periapsis_penalty)(mee_rel_moon, R_MOON, 5)
+    Xi_P_moon = (
+        dPdoe[:5] * ((mee_rel_moon[:5] - params.y_target[:5]) / d_oe_max_moon) ** 2
+    )
+
+    D_moon = A_moon[:5, :].T @ (
+        params.w_oe
+        * S_moon
+        * (params.w_penalty * Xi_P_moon + (1 + params.w_penalty * P) * Xi_E_moon)
+    )
+
+    # blend
+    b = blending_weight(t, y, params)  # 0 = Moon, 1 = Earth
+
+    D = (1 - b) * D_moon + b * D_earth
+
+    alpha = jnp.atan2(-D[0], -D[1])
+    beta = jnp.atan2(-D[2], jnp.linalg.norm(D[:2]))
+    return alpha, beta
+
+
 def bbq_law(t: float, y: ArrayLike, params: Params) -> tuple[float, float]:
     """
     BBQ-Law, for multibody rendezvous.
@@ -111,7 +204,7 @@ def bbq_law(t: float, y: ArrayLike, params: Params) -> tuple[float, float]:
     mee_rel_earth = cartesian_to_mee(y, MU_EARTH)
 
     # Earth guidance
-    angles_earth = _q_law_mee(
+    angles_earth = _rq_law_mee(
         mee_rel_earth,
         mee_of_moon,
         params.w_oe,
@@ -120,7 +213,7 @@ def bbq_law(t: float, y: ArrayLike, params: Params) -> tuple[float, float]:
     )
 
     # Moon guidance
-    angles_moon = _rq_law_mee(
+    angles_moon = _q_law_mee(
         mee_rel_moon, params.y_target, params.w_oe, params.characteristic_accel, MU_MOON
     )
 
@@ -130,8 +223,6 @@ def bbq_law(t: float, y: ArrayLike, params: Params) -> tuple[float, float]:
 
     b = blending_weight(t, y, params)  # 0 = Moon, 1 = Earth
 
-    # chosen_dir = slerp(n_earth, n_moon, b)
-
-    chosen_dir = jax.lax.cond(b < 0.7, lambda: n_moon, lambda: n_earth)
+    chosen_dir = slerp(n_moon, n_earth, b)
 
     return lvlh_to_steering(chosen_dir)

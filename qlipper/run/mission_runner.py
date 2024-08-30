@@ -81,7 +81,7 @@ def final_error(yf: Array, tf: Array, cfg: SimConfig, params: Params) -> float:
         Final error.
     """
 
-    if cfg.steering_law == "bbq_law":
+    if cfg.steering_law in ["bbq_law", "qbbq_law"]:
         cart_state = mee_to_cartesian(yf, MU_EARTH)
         moon_state = params.moon_ephem.evaluate(tf)
         yf = cartesian_to_mee(cart_state - moon_state, MU_MOON)
@@ -180,9 +180,7 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
                 pcoeff=0.3,
                 icoeff=0.3,
                 dcoeff=0,
-                dtmin=1e1,
                 dtmax=1e4,
-                force_dtmin=True,
             ),
             event=end_event,
             saveat=SaveAt(steps=True),
@@ -197,8 +195,10 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
             case RESULTS.event_occurred:
                 if solution.event_mask[0]:
                     logger.info(CONVERGED_BLOCK_LETTERS)
-                else:
-                    logger.info("CRASHED!!")
+                elif solution.event_mask[1]:
+                    logger.info("CRASHED INTO EARTH!!")
+                elif solution.event_mask[2]:
+                    logger.info("CRASHED INTO THE MOON!!")
             case RESULTS.successful:
                 logger.info("NOT CONVERGED - reached end of integration interval")
             case _:

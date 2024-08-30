@@ -132,7 +132,7 @@ def crashed_into_moon(t: float, y: Array, args: Params, **kwargs) -> bool:
         True if we crash into the Moon
     """
     r = y[:3] - args.moon_ephem.evaluate(t)[:3]
-    return r @ r < (1.5 * R_MOON) ** 2
+    return r @ r < R_MOON**2
 
 
 def get_termination_events(cfg: SimConfig) -> Event:
@@ -153,7 +153,7 @@ def get_termination_events(cfg: SimConfig) -> Event:
     # HACK: convergence wrt Moon
     conv = (
         call_cvt_mee_to_lunar(guidance_converged)
-        if cfg.steering_law == "bbq_law"
+        if cfg.steering_law in ["bbq_law", "qbbq_law"]
         else guidance_converged
     )
 

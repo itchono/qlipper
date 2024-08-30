@@ -92,7 +92,15 @@ def plot_trajectory_cart(
         )
         y = y * 1e3  # convert from km to m
 
-        ax.plot(y[0, :], y[1, :], y[2, :], label="Moon", color="gray", linestyle="--")
+        ax.plot(
+            y[0, :],
+            y[1, :],
+            y[2, :],
+            label="Moon",
+            color="gray",
+            linestyle="--",
+            alpha=0.2,
+        )
 
     ax.set_title("Earth Inertial Coordinates")
     # equal aspect ratio
