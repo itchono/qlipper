@@ -173,7 +173,7 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
             y0=y0,
             dt0=1e2,
             args=ode_args,
-            max_steps=int(1e7),
+            max_steps=int(2e6),
             stepsize_controller=PIDController(
                 rtol=1e-6,
                 atol=1e-8,

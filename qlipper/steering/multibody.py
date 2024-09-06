@@ -38,8 +38,10 @@ def blending_weight(t: float, y: ArrayLike, params: Params) -> float:
     r_rel_moon = y[:3] - moon_position
     r_rel_earth = y[:3]
 
-    u1 = MU_EARTH / jnp.linalg.norm(r_rel_earth) ** 2
-    u2 = MU_MOON / jnp.linalg.norm(r_rel_moon) ** 2
+    p = 2  # fall-off factor
+
+    u1 = MU_EARTH / (jnp.linalg.norm(r_rel_earth) ** p)
+    u2 = MU_MOON / (jnp.linalg.norm(r_rel_moon) ** p)
 
     b = u1 / (u1 + u2)  # how much to use Earth guidance
 
@@ -213,8 +215,9 @@ def bbq_law(t: float, y: ArrayLike, params: Params) -> tuple[float, float]:
     )
 
     # Moon guidance
+    MOON_W_OE = jnp.array([1, 1, 1, 1, 1])
     angles_moon = _q_law_mee(
-        mee_rel_moon, params.y_target, params.w_oe, params.characteristic_accel, MU_MOON
+        mee_rel_moon, params.y_target, MOON_W_OE, params.characteristic_accel, MU_MOON
     )
 
     # Blend

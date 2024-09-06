@@ -127,7 +127,6 @@ def plot_cart_wrt_moon(
     params = prebake_sim_config(cfg)
     moon_state = jax.vmap(params.moon_ephem.evaluate)(t)
     y = y - moon_state
-    print(y[-1, :])
 
     fig = plt.figure(figsize=(6, 6), constrained_layout=True)
     ax: Axes3D = fig.add_subplot(projection="3d")
