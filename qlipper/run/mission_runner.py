@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from importlib.metadata import version
 from pathlib import Path
 
 import jax.numpy as jnp
@@ -154,6 +155,10 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
     # save the configuration
     with open(mission_dir / "cfg.json", "w") as f:
         f.write(cfg.serialize())
+
+    # save version info
+    with open(mission_dir / "version.txt", "w") as f:
+        f.write(version("qlipper"))
 
     with temp_log_to_file(mission_dir / "run.log"):
         logger.info(f"Starting mission {cfg.name} with ID {run_id}")
