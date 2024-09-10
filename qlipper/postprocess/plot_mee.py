@@ -56,8 +56,6 @@ def plot_elements_mee(
 
     tof_days = t / 86400
 
-    plt.rcParams.update({"text.usetex": True, "font.family": "serif"})
-
     fig, axs = plt.subplots(3, 1, figsize=(6, 6), sharex=True)
 
     axs: list[plt.Axes]

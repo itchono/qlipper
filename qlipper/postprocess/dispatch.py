@@ -3,6 +3,7 @@ from pathlib import Path
 
 import numpy as np
 from jax.typing import ArrayLike
+from matplotlib import pyplot as plt
 
 from qlipper.configuration import SimConfig
 from qlipper.constants import MU_EARTH, OUTPUT_DIR
@@ -33,6 +34,7 @@ def postprocess_run(
         Whether to show the plots, default False.
     """
     logger.info(f"Postprocessing run: {run_id}")
+    plt.rcParams.update({"text.usetex": True, "font.family": "serif"})
 
     # Plotting
     plot_save_dir = Path(OUTPUT_DIR) / cfg.name / run_id / "plots"
