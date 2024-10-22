@@ -72,7 +72,7 @@ def ideal_solar_sail(
 
     sc_dir_lvlh = steering_to_lvlh(alpha, beta)
     sc_dir_i = rot_inertial_lvlh(y) @ sc_dir_lvlh
-    r_sun_i = params.sun_ephem.evaluate(t)
+    r_sun_i = params.sun_ephem.evaluate(t)[:3]
 
     r_rel_sun_i = r_sun_i - r_spacecraft_i
 

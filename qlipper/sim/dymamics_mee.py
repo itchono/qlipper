@@ -4,12 +4,12 @@ import jax.numpy as jnp
 from jax import Array
 from jax.typing import ArrayLike
 
-from qlipper.constants import MU, P_SCALING
+from qlipper.constants import MU_EARTH, P_SCALING
 from qlipper.converters import mee_to_cartesian
 from qlipper.run.prebake import Params
 
 
-def gve_coefficients(state: ArrayLike) -> tuple[Array, Array]:
+def gve_coefficients(state: ArrayLike, mu: float) -> tuple[Array, Array]:
     """
     Gauss variational equation coefficients for
     modified equinoctial elements.
@@ -33,7 +33,7 @@ def gve_coefficients(state: ArrayLike) -> tuple[Array, Array]:
     # shorthand quantities
     q = 1 + f * jnp.cos(L) + g * jnp.sin(L)
 
-    leading_coefficient = 1 / q * jnp.sqrt(p / MU)
+    leading_coefficient = 1 / q * jnp.sqrt(p / mu)
 
     # A-matrix
     A = (
@@ -59,7 +59,7 @@ def gve_coefficients(state: ArrayLike) -> tuple[Array, Array]:
     )
 
     # b-vector
-    b = jnp.array([0, 0, 0, 0, 0, q**2 * jnp.sqrt(MU * p) / p**2])
+    b = jnp.array([0, 0, 0, 0, 0, q**2 * jnp.sqrt(mu * p) / p**2])
 
     return A, b
 
@@ -82,7 +82,7 @@ def gve_mee(state: ArrayLike, acc_lvlh: ArrayLike) -> Array:
     """
 
     # Gauss variational equation coefficients
-    A, b = gve_coefficients(state)
+    A, b = gve_coefficients(state, MU_EARTH)
 
     # time derivative of state vector
     dstate_dt = A @ acc_lvlh + b
@@ -96,7 +96,7 @@ def dyn_mee(
     params: Params,
     steering_law: Callable[[float, Array, Params], tuple[float, float]],
     propulsion_model: Callable[[float, Array, Params, float, float], Array],
-    perturbations: list[Callable[[float, Array], Array]],
+    perturbations: list[Callable[[float, Array, Params], Array]],
 ) -> Array:
     """
     Top level dynamics function for modified equinoctial elements.
@@ -134,18 +134,18 @@ def dyn_mee(
     # Scaling
     y = y.at[0].mul(P_SCALING)
 
-    # Convert state to cartesian for thrust model
-    cart = mee_to_cartesian(y)
+    # Convert state to cartesian for usage
+    cart = mee_to_cartesian(y, MU_EARTH)
 
     # Control
-    alpha, beta = steering_law(t, y, params)
+    alpha, beta = steering_law(t, cart, params)
 
     # Acceleration from propulsion
     acc_lvlh = propulsion_model(t, cart, params, alpha, beta)
 
     # Perturbations
     for perturbation in perturbations:
-        acc_lvlh += perturbation(t, y)
+        acc_lvlh += perturbation(t, cart, params)
 
     # Gauss variational equation
     dy_dt = gve_mee(y, acc_lvlh)

@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from importlib.metadata import version
 from pathlib import Path
 
 import jax.numpy as jnp
@@ -17,16 +18,19 @@ from jax import Array
 from qlipper.configuration import SimConfig
 from qlipper.constants import (
     CONVERGED_BLOCK_LETTERS,
+    MU_EARTH,
+    MU_MOON,
     OUTPUT_DIR,
     P_SCALING,
     QLIPPER_BLOCK_LETTERS,
 )
-from qlipper.converters import batch_cartesian_to_mee, mee_to_cartesian
-from qlipper.run.prebake import (
-    prebake_convergence_criterion,
-    prebake_ode,
-    prebake_sim_config,
+from qlipper.converters import (
+    batch_cartesian_to_mee,
+    cartesian_to_mee,
+    mee_to_cartesian,
 )
+from qlipper.run.events import get_termination_events
+from qlipper.run.prebake import Params, prebake_ode, prebake_sim_config
 from qlipper.run.recording import temp_log_to_file
 from qlipper.sim.dynamics_cartesian import CARTESIAN_DYN_SCALING
 from qlipper.sim.loss import l2_loss
@@ -50,11 +54,40 @@ def preprocess_y0(cfg: SimConfig) -> Array:
     """
     match cfg.dynamics:
         case "cartesian":
-            return mee_to_cartesian(cfg.y0) / CARTESIAN_DYN_SCALING
+            return mee_to_cartesian(cfg.y0, MU_EARTH) / CARTESIAN_DYN_SCALING
         case "mee":
             return cfg.y0.at[0].divide(P_SCALING)
         case _:
             raise ValueError(f"Unsupported dynamics: {cfg.dynamics}")
+
+
+def final_error(yf: Array, tf: Array, cfg: SimConfig, params: Params) -> float:
+    """
+    Calculate the final error of the simulation.
+
+    Parameters
+    ----------
+    yf : Array
+        Final state vector in MEE
+    tf : Array
+        Final time (s)
+    cfg : SimConfig
+        Simulation configuration.
+    params : Params
+        Prebaked parameters.
+
+    Returns
+    -------
+    float
+        Final error.
+    """
+
+    if cfg.steering_law in ["bbq_law", "qbbq_law"]:
+        cart_state = mee_to_cartesian(yf, MU_EARTH)
+        moon_state = params.moon_ephem.evaluate(tf)
+        yf = cartesian_to_mee(cart_state - moon_state, MU_MOON)
+
+    return l2_loss(yf, params.y_target, params.w_oe)
 
 
 def extract_solution_arrays(sol: Solution, cfg: SimConfig) -> tuple[Array, Array]:
@@ -80,7 +113,9 @@ def extract_solution_arrays(sol: Solution, cfg: SimConfig) -> tuple[Array, Array
 
     match cfg.dynamics:
         case "cartesian":
-            sol_y = batch_cartesian_to_mee(sol.ys[valid_idx, :] * CARTESIAN_DYN_SCALING)
+            sol_y = batch_cartesian_to_mee(
+                sol.ys[valid_idx, :] * CARTESIAN_DYN_SCALING, MU_EARTH
+            )
         case "mee":
             sol_y = sol.ys.at[:, 0].mul(P_SCALING)[valid_idx]
 
@@ -121,6 +156,10 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
     with open(mission_dir / "cfg.json", "w") as f:
         f.write(cfg.serialize())
 
+    # save version info
+    with open(mission_dir / "version.txt", "w") as f:
+        f.write(version("qlipper"))
+
     with temp_log_to_file(mission_dir / "run.log"):
         logger.info(f"Starting mission {cfg.name} with ID {run_id}")
 
@@ -128,7 +167,7 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
         term = ODETerm(prebake_ode(cfg))
         ode_args = prebake_sim_config(cfg)
         y0 = preprocess_y0(cfg)
-        end_event = prebake_convergence_criterion(cfg)
+        end_event = get_termination_events(cfg)
 
         # Run
         logger.info(QLIPPER_BLOCK_LETTERS)
@@ -137,14 +176,20 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
             Tsit5(),
             *cfg.t_span,
             y0=y0,
-            dt0=None,
+            dt0=1e2,
             args=ode_args,
-            max_steps=int(1e6),
+            max_steps=int(2e6),
             stepsize_controller=PIDController(
-                rtol=1e-6, atol=1e-8, pcoeff=0.3, icoeff=0.3, dcoeff=0
+                rtol=1e-6,
+                atol=1e-8,
+                pcoeff=0.3,
+                icoeff=0.3,
+                dcoeff=0,
+                dtmax=1e4,
             ),
             event=end_event,
             saveat=SaveAt(steps=True),
+            throw=False,
         )
 
         # postprocessing
@@ -153,12 +198,19 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
         # Post-run
         match solution.result:
             case RESULTS.event_occurred:
-                logger.info(CONVERGED_BLOCK_LETTERS)
+                if solution.event_mask[0]:
+                    logger.info(CONVERGED_BLOCK_LETTERS)
+                elif solution.event_mask[1]:
+                    logger.info("CRASHED INTO EARTH!!")
+                elif solution.event_mask[2]:
+                    logger.info("CRASHED INTO THE MOON!!")
             case RESULTS.successful:
                 logger.info("NOT CONVERGED - reached end of integration interval")
             case _:
                 logger.warning(f"NOT CONVERGED - {solution.result}")
-        logger.info(f"Final Error: {l2_loss(sol_y[-1], cfg.y_target, cfg.w_oe):.5f}")
+        logger.info(
+            f"Final Error: {final_error(sol_y[-1], sol_t[-1], cfg, ode_args):.5f}"
+        )
         run_end = datetime.now()
         run_duration = run_end - run_start
         logger.info(f"Completed in {run_duration}")

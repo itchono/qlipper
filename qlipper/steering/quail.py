@@ -4,7 +4,6 @@ from jax.typing import ArrayLike
 
 from qlipper.converters import (
     lvlh_to_steering,
-    mee_to_cartesian,
     rot_inertial_lvlh,
     steering_to_lvlh,
 )
@@ -31,7 +30,7 @@ def cone_adaptation(
     n_star_i = C_IO @ steering_to_lvlh(alpha_star, beta_star)
 
     r_spacecraft_i = y[0:3]
-    r_sun_i = params.sun_ephem.evaluate(t)
+    r_sun_i = params.sun_ephem.evaluate(t)[:3]
     r_rel_sun_i = r_sun_i - r_spacecraft_i
     u_i = -r_rel_sun_i / jnp.linalg.norm(r_rel_sun_i)
 
@@ -55,12 +54,27 @@ def cone_adaptation(
 def quail(t: float, y: ArrayLike, params: Params) -> tuple[float, float]:
     """
     Q-law using angle of incidence limits.
+
+    Parameters
+    ----------
+    t : float
+        Time.
+    y : ArrayLike
+        State vector in Cartesian elements.
+    params : Params
+        Simulation parameters.
+
+    Returns
+    -------
+    alpha : float
+        Steering angle.
+    beta : float
+        Steering angle.
     """
     # first stage
     alpha_star, beta_star = q_law(t, y, params)
 
     # second stage
-    cart = mee_to_cartesian(y)
-    alpha, beta = cone_adaptation(t, cart, params, alpha_star, beta_star)
+    alpha, beta = cone_adaptation(t, y, params, alpha_star, beta_star)
 
     return alpha, beta

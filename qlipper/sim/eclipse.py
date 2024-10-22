@@ -27,7 +27,7 @@ def simple_eclipse(t: ArrayLike, y: ArrayLike, params: Params) -> bool:
     """
 
     r_spacecraft = y[:3]
-    r_sun = params.sun_ephem.evaluate(t)
+    r_sun = params.sun_ephem.evaluate(t)[:3]
 
     mag_r_spacecraft = jnp.linalg.norm(r_spacecraft)
     mag_r_sun = jnp.linalg.norm(r_sun)
