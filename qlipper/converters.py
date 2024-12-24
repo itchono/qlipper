@@ -62,7 +62,7 @@ def mee_to_cartesian(mee: ArrayLike, mu: float) -> jax.Array:
     Parameters
     ----------
     mee : ArrayLike
-        Modified equinoctial elements [p(m), f, g, h, k, L(rad)].
+        Modified equinoctial elements [a(m), f, g, h, k, L(rad)].
     mu : float
         Gravitational parameter of the central body;
         changing mu triggers a JIT recompile.
@@ -75,9 +75,13 @@ def mee_to_cartesian(mee: ArrayLike, mu: float) -> jax.Array:
     Notes
     -----
     Formulation from https://spsweb.fltops.jpl.nasa.gov/portaldataops/mpg/MPG_Docs/Source%20Docs/EquinoctalElements-modified.pdf
+
     """
     # unpack state vector
-    p, f, g, h, k, L = mee
+    a, f, g, h, k, L = mee
+
+    # convert SMA and ecc to p
+    p = a * (1 - f**2 - g**2)
 
     # shorthand quantities defined in the document
     alpha_sq = h**2 - k**2
@@ -138,19 +142,21 @@ def cartesian_to_mee(cart: ArrayLike, mu: float) -> jax.Array:
     ----------
     cart : ArrayLike
         Cartesian elements [x, y, z, vx, vy, vz] (m and m/s).
+    mu : float
+        Gravitational parameter of the central body.
 
     Returns
     -------
     mee : Array
-        Modified equinoctial elements [p(m), f, g, h, k, L(rad)].
+        Modified equinoctial elements [a(m), f, g, h, k, L(rad)].
     mu : float
         Gravitational parameter of the central body.
 
     Notes
     -----
     Transcribed from Fortran Astrodynamics Toolkit by jacobwilliams
-    """
 
+    """
     pos = cart[0:3]
     vel = cart[3:6]
     rdv = pos @ vel
@@ -176,7 +182,10 @@ def cartesian_to_mee(cart: ArrayLike, mu: float) -> jax.Array:
     g = ecc @ ghat
     L = jnp.atan2(rhat[1] - vhat[0], rhat[0] + vhat[1])
 
-    return jnp.array([p, f, g, h, k, L])
+    # convert a to p
+    a = p / (1 - f**2 - g**2)
+
+    return jnp.array([a, f, g, h, k, L])
 
 
 @partial(jax.jit, static_argnums=(1,))
@@ -273,3 +282,27 @@ def rot_lvlh_inertial(cart: ArrayLike) -> jax.Array:
     """
 
     return rot_inertial_lvlh(cart).T
+
+
+@jax.jit
+def delta_angle_mod(a: float, b: float) -> float:
+    """
+    Shortest phase difference between two angles, i.e.
+    how much a is ahead of b. Returns in range [-pi, pi].
+
+    Source: https://stackoverflow.com/a/2007279
+
+    Parameters
+    ----------
+    a : float
+        First angle.
+    b : float
+        Second angle.
+
+    Returns
+    -------
+    float
+        Shortest phase difference between the two angles.
+
+    """
+    return ((a - b + jnp.pi) % (2 * jnp.pi)) - jnp.pi

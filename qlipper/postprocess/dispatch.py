@@ -1,6 +1,8 @@
 import logging
 from pathlib import Path
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 from jax.typing import ArrayLike
 from matplotlib import pyplot as plt
@@ -43,19 +45,10 @@ def postprocess_run(
     # convert mee to cartesian
     y_cart = batch_mee_to_cartesian(y, MU_EARTH)
 
-    # HACK: try to plot MEE trajectory, if it fails, plot Cartesian
-    try:
-        plot_trajectory_mee(
-            t, y, cfg, save_path=plot_save_dir / "trajectory.pdf", show=show_plots
-        )
-    except Exception:
-        plot_trajectory_cart(
-            t,
-            y_cart,
-            cfg,
-            save_path=plot_save_dir / "trajectory.pdf",
-            show=show_plots,
-        )
+    plot_trajectory_mee(
+        t, y, cfg, save_path=plot_save_dir / "trajectory.pdf", show=show_plots
+    )
+
     plot_elements_mee(
         t, y, cfg, save_path=plot_save_dir / "elements.pdf", show=show_plots
     )
@@ -68,7 +61,7 @@ def postprocess_run(
             save_path=plot_save_dir / "trajectory_moon.pdf",
             show=show_plots,
         )
-        CLOSE_FRAC = 0.02
+        CLOSE_FRAC = 0.005
 
         plot_cart_wrt_moon(
             t[-int(len(t) * CLOSE_FRAC) :],

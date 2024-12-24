@@ -1,5 +1,6 @@
 from typing import Callable
 
+import jax
 import jax.numpy as jnp
 from jax import Array
 from jax.typing import ArrayLike
@@ -64,5 +65,4 @@ def dyn_cartesian(
 
     dydt = jnp.concatenate([y[3:], acc_inertial + acc_gravity])
     dydt_scaled = dydt / CARTESIAN_DYN_SCALING
-
     return dydt_scaled

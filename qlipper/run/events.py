@@ -4,7 +4,7 @@ from diffrax import Event
 from jax import Array
 
 from qlipper.configuration import SimConfig
-from qlipper.constants import MU_EARTH, MU_MOON, P_SCALING, R_EARTH, R_MOON
+from qlipper.constants import LENGTH_SCALING, MU_EARTH, MU_MOON, R_EARTH, R_MOON
 from qlipper.converters import cartesian_to_mee, mee_to_cartesian
 from qlipper.sim import Params
 from qlipper.sim.dynamics_cartesian import CARTESIAN_DYN_SCALING
@@ -18,7 +18,7 @@ def call_with_unscaled_mee(f: Callable) -> Callable:
         Expects y to be modified equinoctial elements, with
         its semilatus rectum scaled
         """
-        return f(t, y.at[0].mul(P_SCALING), args)
+        return f(t, y.at[0].mul(LENGTH_SCALING), args)
 
     return wrapper
 
@@ -86,7 +86,7 @@ def guidance_converged(t: float, y: Array, args: Params, **kwargs) -> bool:
         True if the termination condition is met
     """
     # Check if the guidance loss is below the convergence tolerance
-    loss = l2_loss(y, args.y_target, args.w_oe)
+    loss = l2_loss(y, args.y_target)
 
     return loss < args.conv_tol
 
@@ -153,24 +153,14 @@ def get_termination_events(cfg: SimConfig) -> Event:
     # HACK: convergence wrt Moon
     conv = (
         call_cvt_mee_to_lunar(guidance_converged)
-        if cfg.steering_law in ["bbq_law", "qbbq_law"]
+        if cfg.steering_law == "bbq_law"
         else guidance_converged
     )
 
-    match cfg.dynamics:
-        case "mee":
-            fcn_list = [
-                call_with_unscaled_mee(conv),
-                call_with_unscaled_mee(call_cvt_mee_to_cart(crashed_into_earth)),
-                call_with_unscaled_mee(call_cvt_mee_to_cart(crashed_into_moon)),
-            ]
-        case "cartesian":
-            fcn_list = [
-                call_with_unscaled_cart(call_cvt_cart_to_mee(conv)),
-                call_with_unscaled_cart(crashed_into_earth),
-                call_with_unscaled_cart(crashed_into_moon),
-            ]
-        case _:
-            raise ValueError(f"Unknown dynamics: {cfg.dynamics}")
+    fcn_list = [
+        call_with_unscaled_cart(call_cvt_cart_to_mee(conv)),
+        call_with_unscaled_cart(crashed_into_earth),
+        call_with_unscaled_cart(crashed_into_moon),
+    ]
 
     return Event(fcn_list)

@@ -223,7 +223,7 @@ def generate_ephem_arrays(
 
     # log compute path
     path = resolve_spk_path(kernel, observer, target)
-    logger.info(f"Ephemeris compute path: {path_to_named_string(path)}")
+    logger.debug(f"Ephemeris compute path: {path_to_named_string(path)}")
 
     # have to use numpy here because jplephem mutates the input
     t_samples = np.linspace(*t_span, num_samples)

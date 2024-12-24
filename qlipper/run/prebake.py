@@ -2,15 +2,13 @@ import logging
 from functools import partial
 from typing import Any, Callable
 
-import jax.numpy as jnp
 from diffrax import CubicInterpolation, backward_hermite_coefficients
 from jax import Array, jit
 
 from qlipper.configuration import SimConfig
-from qlipper.sim import Params
-from qlipper.sim.dymamics_mee import dyn_mee
 from qlipper.sim.dynamics_cartesian import dyn_cartesian
 from qlipper.sim.ephemeris import generate_ephem_arrays, lookup_body_id
+from qlipper.sim.params import GuidanceParams, Params
 from qlipper.sim.perturbations import PERTURBATIONS
 from qlipper.sim.propulsion import PROPULSION_MODELS
 from qlipper.steering import STEERING_LAWS
@@ -61,10 +59,18 @@ def prebake_sim_config(cfg: SimConfig) -> Params:
     return Params(
         y_target=cfg.y_target,
         conv_tol=cfg.conv_tol,
-        w_oe=cfg.w_oe,
-        w_penalty=cfg.w_penalty,
-        pen_param=1.0,
-        kappa=jnp.deg2rad(cfg.kappa),
+        earth_guidance=GuidanceParams(
+            w_oe=cfg.earth_w_oe,
+            penalty_weight=cfg.earth_penalty_weight,
+            penalty_scaling=cfg.earth_penalty_scaling,
+            rp_min=cfg.earth_rp_min,
+        ),
+        moon_guidance=GuidanceParams(
+            w_oe=cfg.moon_w_oe,
+            penalty_weight=cfg.moon_penalty_weight,
+            penalty_scaling=cfg.moon_penalty_scaling,
+            rp_min=cfg.moon_rp_min,
+        ),
         characteristic_accel=cfg.characteristic_accel,
         epoch_jd=cfg.epoch_jd,
         sun_ephem=sun_ephem,
@@ -92,12 +98,7 @@ def prebake_ode(cfg: SimConfig) -> Callable[[float, Array, Any], Array]:
     steering_law = STEERING_LAWS[cfg.steering_law]
     propulsion_model = PROPULSION_MODELS[cfg.propulsion_model]
 
-    dynamics_options: dict[str, Callable[[float, Array, Any, Any], Array]] = {
-        "mee": dyn_mee,
-        "cartesian": dyn_cartesian,
-    }
-
-    ode = dynamics_options[cfg.dynamics]
+    ode = dyn_cartesian
 
     baked_ode = jit(
         partial(

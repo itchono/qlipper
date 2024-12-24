@@ -60,9 +60,8 @@ def plot_elements_mee(
 
     axs: list[plt.Axes]
 
-    axs[0].plot(tof_days, y[:, 0], label="p", color="C0")
+    axs[0].plot(tof_days, y[:, 0], label="a (m)", color="C0")
     axs[0].axhline(cfg.y_target[0], color="C0", linestyle="--", label="_")
-    axs[0].set_ylabel("Orbit Size (m)")
     axs[0].legend()
     axs[0].grid()
 
@@ -70,7 +69,6 @@ def plot_elements_mee(
     axs[1].axhline(cfg.y_target[1], color="C1", linestyle="--", label="_")
     axs[1].plot(tof_days, y[:, 2], label="g", color="C2")
     axs[1].axhline(cfg.y_target[2], color="C2", linestyle="--", label="_")
-    axs[1].set_ylabel("Eccentricity Vector")
     axs[1].legend()
     axs[1].grid()
 
@@ -78,7 +76,6 @@ def plot_elements_mee(
     axs[2].axhline(cfg.y_target[3], color="C3", linestyle="--", label="_")
     axs[2].plot(tof_days, y[:, 4], label="k", color="C4")
     axs[2].axhline(cfg.y_target[4], color="C4", linestyle="--", label="_")
-    axs[2].set_ylabel("Nodal Position")
     axs[2].legend()
     axs[2].grid()
 
@@ -178,7 +175,7 @@ def plot_trajectory_mee(
         )
         y = y * 1e3  # convert from km to m
 
-        ax.plot(y[0, :], y[1, :], y[2, :], label="Moon", color="gray", linestyle="--")
+        ax.plot(y[0, :], y[1, :], y[2, :], label="Moon", color="gray", alpha=0.5)
 
     ax.set_title("Earth Inertial Coordinates")
     # equal aspect ratio

@@ -1,70 +1,78 @@
-from typing import Callable
-
+import jax
 import jax.numpy as jnp
-from jax import Array
+from jax.numpy import cos, sin, sqrt
 from jax.typing import ArrayLike
 
-from qlipper.constants import MU_EARTH, P_SCALING
-from qlipper.converters import mee_to_cartesian
-from qlipper.run.prebake import Params
+from qlipper.constants import MU_EARTH
 
 
-def gve_coefficients(state: ArrayLike, mu: float) -> tuple[Array, Array]:
+def gve_coefficients(state: ArrayLike, mu: float) -> tuple[jax.Array, jax.Array]:
     """
     Gauss variational equation coefficients for
-    modified equinoctial elements.
+    a-modified equinoctial elements under no additional perturbations.
+
+    i.e. [a f g h k L]
 
     Parameters
     ----------
     state : ArrayLike
         State vector in modified equinoctial elements.
+    mu : float
+        Gravitational parameter.
 
     Returns
     -------
-    A : Array
+    A : jax.Array
         A-matrix for Gauss variational equation.
-    b : Array
+    b : jax.Array
         b-vector for Gauss variational equation.
-    """
 
+    """
     # unpack state vector
-    p, f, g, h, k, L = state
+    a, f, g, h, k, L = state
+
+    # convert SMA and ecc to p
+    p = a * (1 - f**2 - g**2)  # semi-latus rectum p = a(1 - e^2)
 
     # shorthand quantities
-    q = 1 + f * jnp.cos(L) + g * jnp.sin(L)
+    q = 1 + f * cos(L) + g * sin(L)
 
-    leading_coefficient = 1 / q * jnp.sqrt(p / mu)
+    leading_coefficient = 1 / q * sqrt(p / mu)
 
     # A-matrix
     A = (
         jnp.array(
             [
-                [0, 2 * p, 0],
                 [
-                    q * jnp.sin(L),
-                    (q + 1) * jnp.cos(L) + f,
-                    -g * (h * jnp.sin(L) - k * jnp.cos(L)),
+                    2 * a * q * (f * sin(L) - g * cos(L)) / (1 - f**2 - g**2),
+                    2 * a * q**2 / (1 - f**2 - g**2),
+                    0,
                 ],
                 [
-                    -q * jnp.cos(L),
-                    (q + 1) * jnp.sin(L) + g,
-                    f * (h * jnp.sin(L) - k * jnp.cos(L)),
+                    q * sin(L),
+                    (q + 1) * cos(L) + f,
+                    -g * (h * sin(L) - k * cos(L)),
                 ],
-                [0, 0, jnp.cos(L) / 2 * (1 + h**2 + k**2)],
-                [0, 0, jnp.sin(L) / 2 * (1 + h**2 + k**2)],
-                [0, 0, h * jnp.sin(L) - k * jnp.cos(L)],
+                [
+                    -q * cos(L),
+                    (q + 1) * sin(L) + g,
+                    f * (h * sin(L) - k * cos(L)),
+                ],
+                [0, 0, cos(L) / 2 * (1 + h**2 + k**2)],
+                [0, 0, sin(L) / 2 * (1 + h**2 + k**2)],
+                [0, 0, h * sin(L) - k * cos(L)],
             ]
         )
         * leading_coefficient
     )
 
     # b-vector
-    b = jnp.array([0, 0, 0, 0, 0, q**2 * jnp.sqrt(mu * p) / p**2])
+    b = jnp.array([0, 0, 0, 0, 0, q**2 * sqrt(mu * p) / p**2])
 
     return A, b
 
 
-def gve_mee(state: ArrayLike, acc_lvlh: ArrayLike) -> Array:
+def gve_mee(state: ArrayLike, acc_lvlh: ArrayLike) -> jax.Array:
     """
     Gauss variational equation for modified equinoctial elements.
 
@@ -77,10 +85,10 @@ def gve_mee(state: ArrayLike, acc_lvlh: ArrayLike) -> Array:
 
     Returns
     -------
-    dstate_dt : Array
+    dstate_dt : jax.Array
         Time derivative of state vector.
-    """
 
+    """
     # Gauss variational equation coefficients
     A, b = gve_coefficients(state, MU_EARTH)
 
@@ -88,66 +96,3 @@ def gve_mee(state: ArrayLike, acc_lvlh: ArrayLike) -> Array:
     dstate_dt = A @ acc_lvlh + b
 
     return dstate_dt
-
-
-def dyn_mee(
-    t: float,
-    y: ArrayLike,
-    params: Params,
-    steering_law: Callable[[float, Array, Params], tuple[float, float]],
-    propulsion_model: Callable[[float, Array, Params, float, float], Array],
-    perturbations: list[Callable[[float, Array, Params], Array]],
-) -> Array:
-    """
-    Top level dynamics function for modified equinoctial elements.
-
-    Parameters
-    ----------
-    t : float
-        Time since epoch (s).
-    y : ArrayLike
-        State vector in modified equinoctial elements.
-    params : Params
-        Configuration object.
-    steering_law : Callable
-        Control law, should be pre-baked with the ODE.
-    propulsion_model : Callable
-        Propulsion model, should be pre-baked with the ODE.
-    perturbations : list[Callable]
-        List of perturbation functions, should be pre-baked with the ODE.
-
-    Returns
-    -------
-    dy_dt : Array
-        Time derivative of state vector.
-
-    Outline
-    -------
-    1. Rescale state vector (p specifically) from normalized to physical units.
-    2. Compute control.
-    3. Compute acceleration.
-    4. Compute perturbations (if any).
-    5. Apply Gauss variational equation.
-    6. Rescale time derivative of state vector.
-    """
-
-    # Scaling
-    y = y.at[0].mul(P_SCALING)
-
-    # Convert state to cartesian for usage
-    cart = mee_to_cartesian(y, MU_EARTH)
-
-    # Control
-    alpha, beta = steering_law(t, cart, params)
-
-    # Acceleration from propulsion
-    acc_lvlh = propulsion_model(t, cart, params, alpha, beta)
-
-    # Perturbations
-    for perturbation in perturbations:
-        acc_lvlh += perturbation(t, cart, params)
-
-    # Gauss variational equation
-    dy_dt = gve_mee(y, acc_lvlh)
-
-    return dy_dt.at[0].divide(P_SCALING)

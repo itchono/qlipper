@@ -18,10 +18,10 @@ from jax import Array
 from qlipper.configuration import SimConfig
 from qlipper.constants import (
     CONVERGED_BLOCK_LETTERS,
+    LENGTH_SCALING,
     MU_EARTH,
     MU_MOON,
     OUTPUT_DIR,
-    P_SCALING,
     QLIPPER_BLOCK_LETTERS,
 )
 from qlipper.converters import (
@@ -50,15 +50,9 @@ def preprocess_y0(cfg: SimConfig) -> Array:
     Returns
     -------
     y0 : Array
-        Preprocessed initial state vector.
+        Preprocessed initial state vector (cartesian)
     """
-    match cfg.dynamics:
-        case "cartesian":
-            return mee_to_cartesian(cfg.y0, MU_EARTH) / CARTESIAN_DYN_SCALING
-        case "mee":
-            return cfg.y0.at[0].divide(P_SCALING)
-        case _:
-            raise ValueError(f"Unsupported dynamics: {cfg.dynamics}")
+    return mee_to_cartesian(cfg.y0, MU_EARTH) / CARTESIAN_DYN_SCALING
 
 
 def final_error(yf: Array, tf: Array, cfg: SimConfig, params: Params) -> float:
@@ -87,7 +81,7 @@ def final_error(yf: Array, tf: Array, cfg: SimConfig, params: Params) -> float:
         moon_state = params.moon_ephem.evaluate(tf)
         yf = cartesian_to_mee(cart_state - moon_state, MU_MOON)
 
-    return l2_loss(yf, params.y_target, params.w_oe)
+    return l2_loss(yf, params.y_target)
 
 
 def extract_solution_arrays(sol: Solution, cfg: SimConfig) -> tuple[Array, Array]:
@@ -111,14 +105,9 @@ def extract_solution_arrays(sol: Solution, cfg: SimConfig) -> tuple[Array, Array
     valid_idx = jnp.isfinite(sol.ys[:, 0])
     sol_t = sol.ts[valid_idx]
 
-    match cfg.dynamics:
-        case "cartesian":
-            sol_y = batch_cartesian_to_mee(
-                sol.ys[valid_idx, :] * CARTESIAN_DYN_SCALING, MU_EARTH
-            )
-        case "mee":
-            sol_y = sol.ys.at[:, 0].mul(P_SCALING)[valid_idx]
-
+    sol_y = batch_cartesian_to_mee(
+        sol.ys[valid_idx, :] * CARTESIAN_DYN_SCALING, MU_EARTH
+    )
     return sol_t, sol_y
 
 
@@ -183,9 +172,8 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
                 rtol=1e-6,
                 atol=1e-8,
                 pcoeff=0.3,
-                icoeff=0.3,
+                icoeff=0.4,
                 dcoeff=0,
-                dtmax=1e4,
             ),
             event=end_event,
             saveat=SaveAt(steps=True),
