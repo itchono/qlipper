@@ -4,7 +4,7 @@ from jax.typing import ArrayLike
 
 
 @jax.jit
-def l2_loss(y: ArrayLike, y_target: ArrayLike) -> float:
+def l2_loss(y: ArrayLike, y_target: ArrayLike, weights: ArrayLike) -> float:
     """
     L2 norm loss function for guidance.
 
@@ -26,8 +26,9 @@ def l2_loss(y: ArrayLike, y_target: ArrayLike) -> float:
     -----
     Normalizes SMA by LENGTH_SCALING.
     """
+    w_filter = jnp.array(weights) > 0
 
     return jnp.linalg.norm(
-        (y[:5] - y_target[:5]).at[0].divide(y_target[0]),  # noqa: PD008
+        (y[:5] - y_target[:5]).at[0].divide(y_target[0]) * w_filter,  # noqa: PD008
         ord=2,
     )

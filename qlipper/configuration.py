@@ -74,6 +74,7 @@ class SimConfig:
     perturbations: list[str]
     characteristic_accel: float
     epoch_jd: float
+    ephemeris: str = "real"
 
     def __post_init__(self):
         # Validate the configuration

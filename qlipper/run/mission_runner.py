@@ -82,7 +82,7 @@ def final_error(yf: Array, tf: Array, cfg: SimConfig, params: Params) -> float:
         moon_state = params.moon_ephem.evaluate(tf)
         yf = cartesian_to_mee(cart_state - moon_state, MU_MOON)
 
-    return l2_loss(yf, params.y_target)
+    return l2_loss(yf, params.y_target, params.moon_guidance.w_oe)
 
 
 def extract_solution_arrays(sol: Solution) -> tuple[Array, Array]:

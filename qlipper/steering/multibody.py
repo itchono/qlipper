@@ -66,7 +66,6 @@ def blending_weight(t: float, y: ArrayLike, params: Params) -> float:
     b = u1 / (u1 + u2)  # how much to use Earth guidance
 
     return smoothstep(b, 0.6, 0.9)  # force control over to moon guidance earlier etc.
-    # return b
 
 
 @jax.jit
@@ -90,24 +89,34 @@ def slerp(a: ArrayLike, b: ArrayLike, t: float) -> ArrayLike:
         Interpolated vector.
     """
 
+    # compute angle between vectors (numerically stable)
+    # https://math.stackexchange.com/a/1782769
+    mag_a = jnp.linalg.norm(a)
+    mag_b = jnp.linalg.norm(b)
+    theta_0 = jnp.arctan2(
+        jnp.linalg.norm(mag_b * a - mag_a * b), jnp.linalg.norm(mag_b * a + mag_a * b)
+    )
+
     # Ensure the vectors are unit vectors
-    v0 = a / jnp.linalg.norm(a)
-    v1 = b / jnp.linalg.norm(b)
+    v0 = a / mag_a
+    v1 = b / mag_b
 
-    # Compute the cosine of the angle between the vectors
-    # Clamp dot product to avoid numerical errors leading to values slightly out of range
-    dot = jnp.clip(v0 @ v1, -1.0, 1.0)
-
-    # Compute the angle between the vectors
-    theta_0 = jnp.arccos(dot)  # theta_0 is the angle between v0 and v1
     sin_theta_0 = jnp.sin(theta_0)
 
     # Compute the interpolation
     theta = theta_0 * t
     sin_theta = jnp.sin(theta)
 
-    s0 = jnp.sin((1.0 - t) * theta_0) / sin_theta_0
-    s1 = sin_theta / sin_theta_0
+    s0 = jax.lax.cond(
+        jnp.abs(sin_theta_0) < 1e-6,
+        lambda: 1.0 - t,
+        lambda: jnp.sin((1.0 - t) * theta_0) / sin_theta_0,
+    )
+    s1 = jax.lax.cond(
+        jnp.abs(sin_theta) < 1e-6,
+        lambda: t,
+        lambda: sin_theta / sin_theta_0,
+    )
 
     return s0 * v0 + s1 * v1
 

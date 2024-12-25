@@ -167,8 +167,8 @@ def cartesian_to_mee(cart: ArrayLike, mu: float) -> jax.Array:
     hhat = hvec / hmag
     vhat = (rmag * vel - rdv * rhat) / hmag
     p = hmag**2 / mu
-    k = hhat[0] / (1 + hhat[2])
-    h = -hhat[1] / (1 + hhat[2])
+    k = hhat[0] / (1 + hhat[2] + 1e-10)
+    h = -hhat[1] / (1 + hhat[2] + 1e-10)
     kk = k**2
     hh = h**2
     s2 = 1 + hh + kk

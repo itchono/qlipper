@@ -86,7 +86,7 @@ def guidance_converged(t: float, y: Array, args: Params, **kwargs) -> bool:
         True if the termination condition is met
     """
     # Check if the guidance loss is below the convergence tolerance
-    loss = l2_loss(y, args.y_target)
+    loss = l2_loss(y, args.y_target, args.moon_guidance.w_oe)
 
     return loss < args.conv_tol
 

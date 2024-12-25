@@ -2,11 +2,15 @@ import logging
 from functools import partial
 from typing import Any, Callable
 
-from diffrax import CubicInterpolation, backward_hermite_coefficients
+from diffrax import (
+    CubicInterpolation,
+    backward_hermite_coefficients,
+)
 from equinox import Module
 from jax import Array, jit
 
 from qlipper.configuration import SimConfig
+from qlipper.sim.cr3bp import generate_fake_arrays
 from qlipper.sim.dynamics_cartesian import dyn_cartesian
 from qlipper.sim.ephemeris import generate_ephem_arrays, lookup_body_id
 from qlipper.sim.params import GuidanceParams, Params
@@ -46,31 +50,48 @@ def prebake_sim_config(cfg: SimConfig) -> Params:
         f"{num_ephem_samples} samples will be used"
     )
 
-    if "sun_gravity" in cfg.perturbations:
-        # Generate sun ephemeris interpolant
-        sun_t_sample, sun_state_sample = generate_ephem_arrays(
-            earth, sun, cfg.epoch_jd, cfg.t_span, num_ephem_samples
-        )
-        sun_state_sample = sun_state_sample * 1e3  # convert from km to m
-        interp_coeffs = backward_hermite_coefficients(sun_t_sample, sun_state_sample.T)
-        sun_ephem = CubicInterpolation(sun_t_sample, interp_coeffs)
-    else:
-        logger.warning("Sun gravity perturbation not enabled, using dummy interpolant")
+    if cfg.ephemeris == "cr3bp":
+        # Generate fake arrays for CR3BP
         sun_ephem = DummyInterpolant()
-
-    # Generate moon ephemeris interpolant
-    if "moon_gravity" in cfg.perturbations:
-        moon_t_sample, moon_state_sample = generate_ephem_arrays(
+        moon_t_sample, moon_state_sample = generate_fake_arrays(
             earth, moon, cfg.epoch_jd, cfg.t_span, num_ephem_samples
         )
-        moon_state_sample = moon_state_sample * 1e3  # convert from km to m
-        interp_coeffs = backward_hermite_coefficients(
-            moon_t_sample, moon_state_sample.T
-        )
+        interp_coeffs = backward_hermite_coefficients(moon_t_sample, moon_state_sample)
+        logger.info("Using CR3BP ephemeris")
         moon_ephem = CubicInterpolation(moon_t_sample, interp_coeffs)
+
     else:
-        logger.warning("Moon gravity perturbation not enabled, using dummy interpolant")
-        moon_ephem = DummyInterpolant()
+        if "sun_gravity" in cfg.perturbations:
+            # Generate sun ephemeris interpolant
+            sun_t_sample, sun_state_sample = generate_ephem_arrays(
+                earth, sun, cfg.epoch_jd, cfg.t_span, num_ephem_samples
+            )
+            sun_state_sample = sun_state_sample * 1e3  # convert from km to m
+            interp_coeffs = backward_hermite_coefficients(
+                sun_t_sample, sun_state_sample.T
+            )
+            sun_ephem = CubicInterpolation(sun_t_sample, interp_coeffs)
+        else:
+            logger.warning(
+                "Sun gravity perturbation not enabled, using dummy interpolant"
+            )
+            sun_ephem = DummyInterpolant()
+
+        # Generate moon ephemeris interpolant
+        if "moon_gravity" in cfg.perturbations:
+            moon_t_sample, moon_state_sample = generate_ephem_arrays(
+                earth, moon, cfg.epoch_jd, cfg.t_span, num_ephem_samples
+            )
+            moon_state_sample = moon_state_sample * 1e3  # convert from km to m
+            interp_coeffs = backward_hermite_coefficients(
+                moon_t_sample, moon_state_sample.T
+            )
+            moon_ephem = CubicInterpolation(moon_t_sample, interp_coeffs)
+        else:
+            logger.warning(
+                "Moon gravity perturbation not enabled, using dummy interpolant"
+            )
+            moon_ephem = DummyInterpolant()
 
     return Params(
         y_target=cfg.y_target,
