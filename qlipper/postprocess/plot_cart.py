@@ -9,6 +9,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 from qlipper.configuration import SimConfig
 from qlipper.constants import R_EARTH, R_MOON
+from qlipper.postprocess.interpolation import interpolate_time
 from qlipper.postprocess.plotting_utils import plot_sphere
 from qlipper.sim.params import Params
 
@@ -52,6 +53,8 @@ def plot_trajectory_cart(
         radius=R_EARTH,
         plot_kwargs={"color": (0.3010, 0.7450, 0.9330), "alpha": 0.6},
     )
+
+    t, y = interpolate_time(t, y, len(y))
 
     # split the trajectory into segments based on L
     NUM_SEGMENTS = 50
@@ -120,6 +123,8 @@ def plot_cart_wrt_moon(
     # moon ephemeris
     moon_state = jax.vmap(params.moon_ephem.evaluate)(t)
     y = y - moon_state
+
+    t, y = interpolate_time(t, y, len(y))
 
     fig = plt.figure(figsize=(6, 6), constrained_layout=True)
     ax: Axes3D = fig.add_subplot(projection="3d")

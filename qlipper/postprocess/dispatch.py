@@ -72,7 +72,6 @@ def postprocess_run(
 
         # find when the spacecraft is close to the moon (i.e. last point where dist < 1000 km)
         idx_close = np.where(dist_rel_moon > 60000e3)[0][-1]
-        print(idx_close)
 
         plot_elements_mee(
             t,

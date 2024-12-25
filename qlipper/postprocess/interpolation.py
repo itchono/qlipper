@@ -56,6 +56,45 @@ def filter_idx_non_increasing(arr: jax.Array) -> jax.Array:
     return good_idx
 
 
+def interpolate_time(
+    t: jax.Array,
+    y: jax.Array,
+    n_interp: int,
+) -> tuple[jax.Array, jax.Array]:
+    """
+    Interpolate in linear time.
+
+    Parameters
+    ----------
+    t : Array, shape (N,)
+        Time vector in seconds elapsed.
+    y : Array, shape (N, 6)
+        State vectors.
+    n_interp : int
+        Number of total points in the interpolated time vector.
+
+    Returns
+    -------
+    t_interp : Array, shape (N_interp,)
+        Interpolated time vector in seconds elapsed.
+    y_interp : Array, shape (N_interp, 6)
+        Interpolated state vector.
+
+    """
+    # filter out points where time is not increasing
+    good_idx = filter_idx_non_increasing(t)
+    t = t[good_idx]
+    y = y[good_idx]
+
+    t_interp = jnp.linspace(t[0], t[-1], n_interp)
+
+    # interpolate the state vector
+    coeffs = backward_hermite_coefficients(t, y)
+    interp = CubicInterpolation(t, coeffs)
+    y_interp = jax.vmap(interp.evaluate)(t_interp)
+    return t_interp, y_interp
+
+
 def interpolate_mee(
     t: jax.Array,
     y: jax.Array,
