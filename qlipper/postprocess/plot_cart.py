@@ -124,7 +124,9 @@ def plot_cart_wrt_moon(
     moon_state = jax.vmap(params.moon_ephem.evaluate)(t)
     y = y - moon_state
 
-    t, y = interpolate_time(t, y, len(y))
+    # interpolate wrt time for better plotting
+    dt_max = 500
+    t, y = interpolate_time(t, y, int((t[-1] - t[0]) / dt_max))
 
     fig = plt.figure(figsize=(6, 6), constrained_layout=True)
     ax: Axes3D = fig.add_subplot(projection="3d")

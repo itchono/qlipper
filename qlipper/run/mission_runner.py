@@ -110,7 +110,9 @@ def extract_solution_arrays(sol: Solution) -> tuple[Array, Array]:
     return sol_t, sol_y
 
 
-def run_mission(cfg: SimConfig, *, overrun: bool = False) -> tuple[str, Array, Array]:
+def run_mission(
+    cfg: SimConfig, *, overrun_params: dict = {}
+) -> tuple[str, Array, Array]:
     """
     Run a qlipper simulation.
 
@@ -166,7 +168,7 @@ def run_mission(cfg: SimConfig, *, overrun: bool = False) -> tuple[str, Array, A
             y0=y0,
             dt0=1e2,
             args=ode_args,
-            max_steps=int(5e5),
+            max_steps=int(1e5),
             stepsize_controller=PIDController(
                 rtol=1e-6,
                 atol=1e-8,
@@ -203,18 +205,31 @@ def run_mission(cfg: SimConfig, *, overrun: bool = False) -> tuple[str, Array, A
         logger.info(f"Completed in {run_duration}")
         logger.info(f"Steps: {solution.stats['num_steps']}")
 
-        if overrun:
-            logger.info("Propagating a little bit more with no thrust...")
+        if overrun_params:
+            logger.info("Secondary propagation...")
+            logger.info("Overrun parameters: %s", overrun_params)
 
             # recalculate timespan
-            t_span = (sol_t[-1], sol_t[-1] + 86400 * 2)
-            # rebuild ephemeris
+            t_span = (
+                sol_t[-1],
+                sol_t[-1] + overrun_params["t_span"][1],
+            )
+            del overrun_params["t_span"]
+
+            # rebuild args
             overrun_args = prebake_sim_config(
                 replace(
                     cfg,
-                    t_span=t_span,
-                    conv_tol=cfg.conv_tol / 10,
-                    propulsion_model="no_thrust",
+                    **overrun_params,
+                )
+            )
+
+            term = ODETerm(
+                prebake_ode(
+                    replace(
+                        cfg,
+                        **overrun_params,
+                    )
                 )
             )
 
@@ -243,6 +258,26 @@ def run_mission(cfg: SimConfig, *, overrun: bool = False) -> tuple[str, Array, A
             )
 
             sol_t_2, sol_y_2 = extract_solution_arrays(second_solution)
+
+            match second_solution.result:
+                case RESULTS.event_occurred:
+                    if second_solution.event_mask[0]:
+                        logger.info(CONVERGED_BLOCK_LETTERS)
+                    elif second_solution.event_mask[1]:
+                        logger.info("CRASHED INTO EARTH!!")
+                    elif second_solution.event_mask[2]:
+                        logger.info("CRASHED INTO THE MOON!!")
+                case RESULTS.successful:
+                    logger.info("NOT CONVERGED - reached end of integration interval")
+                case _:
+                    logger.warning(f"NOT CONVERGED - {second_solution.result}")
+            logger.info(
+                f"Final Error: {final_error(sol_y_2[-1], sol_t_2[-1], cfg, overrun_args):.5f}"
+            )
+            run_end = datetime.now()
+            run_duration = run_end - run_start
+            logger.info(f"Total time: {run_duration}")
+            logger.info(f"Additional Steps: {second_solution.stats['num_steps']}")
 
             # concatenate the two solutions
             sol_t = jnp.concatenate([sol_t, sol_t_2])

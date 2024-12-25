@@ -58,20 +58,34 @@ def postprocess_run(
     # generate params from cfg
     params = prebake_sim_config(cfg)
 
-    plot_trajectory_cart(t, y_cart, cfg, params)
-    plt.savefig(plot_save_dir / "trajectory.pdf")
-
-    plot_elements_mee(t, y, cfg, params)
-    plt.savefig(plot_save_dir / "elements.pdf")
-
     if cfg.steering_law == "bbq_law":
         dist_rel_moon = jax.vmap(distance_rel_moon, in_axes=(0, 0, None))(
             t, y_cart, params
         )
         dist_rel_moon = jnp.linalg.norm(dist_rel_moon, axis=1)
 
-        # find when the spacecraft is close to the moon (i.e. last point where dist < 1000 km)
-        idx_close = np.where(dist_rel_moon > 60000e3)[0][-1]
+        within_lunar_soi = dist_rel_moon < 100000e3
+
+        plot_trajectory_cart(t, y_cart, cfg, params)
+        plt.savefig(plot_save_dir / "trajectory.pdf")
+
+        # plot elements only when not within lunar SOI
+        plot_elements_mee(
+            t[~within_lunar_soi],
+            y[~within_lunar_soi, :],
+            cfg,
+            params,
+        )
+        plt.savefig(plot_save_dir / "elements.pdf")
+
+        # find when the spacecraft is close to the moon
+        idx_close = np.where(~within_lunar_soi)[0][-1]
+
+        if idx_close == len(t) - 1:
+            logger.warning(
+                "Spacecraft never got close to the moon, plotting last 5% of trajectory"
+            )
+            idx_close = int(len(t) * 0.95)
 
         plot_elements_mee(
             t,
@@ -109,6 +123,12 @@ def postprocess_run(
 
         plot_blending_weight(t, y_cart, dist_rel_moon, params)
         plt.savefig(plot_save_dir / "blending_weight.pdf")
+    else:
+        plot_trajectory_cart(t, y_cart, cfg, params)
+        plt.savefig(plot_save_dir / "trajectory.pdf")
+
+        plot_elements_mee(t, y, cfg, params)
+        plt.savefig(plot_save_dir / "elements.pdf")
 
     if show_plots:
         plt.show()
@@ -138,7 +158,7 @@ def postprocess_from_folder(folder: Path, show_plots: bool = False) -> None:
     # get run_id
     run_id = folder.name
 
-    assert run_id.startswith("run_"), f"{run_id} is not a valid run ID"
+    # assert run_id.startswith("run_"), f"{run_id} is not a valid run ID"
 
     # load config
     cfg = SimConfig.from_file(folder / "cfg.json")
