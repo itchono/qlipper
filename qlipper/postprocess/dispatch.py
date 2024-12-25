@@ -64,7 +64,7 @@ def postprocess_run(
         )
         dist_rel_moon = jnp.linalg.norm(dist_rel_moon, axis=1)
 
-        within_lunar_soi = dist_rel_moon < 100000e3
+        within_lunar_soi = dist_rel_moon < 60000e3
 
         plot_trajectory_cart(t, y_cart, cfg, params)
         plt.savefig(plot_save_dir / "trajectory.pdf")
