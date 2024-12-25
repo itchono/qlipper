@@ -3,12 +3,38 @@ import jax.numpy as jnp
 from jax.typing import ArrayLike
 
 from qlipper.constants import MU_EARTH, MU_MOON
-from qlipper.converters import cartesian_to_mee, lvlh_to_steering, steering_to_lvlh
-from qlipper.run.prebake import Params
-from qlipper.steering.q_law import (
-    _q_law_mee,
-    _rq_law_mee,
+from qlipper.converters import (
+    a_mee_to_p_mee,
+    cartesian_to_mee,
+    lvlh_to_steering,
+    steering_to_lvlh,
 )
+from qlipper.run.prebake import Params
+from qlipper.steering.estimation import d_oe_xx_mee_p
+from qlipper.steering.q_law import Parameterization, _q_law_mee, _rq_law_mee
+
+
+def smoothstep(x: ArrayLike, x_min: float, x_max: float) -> ArrayLike:
+    """
+    Smoothstep function.
+
+    Parameters
+    ----------
+    x : ArrayLike
+        Input values.
+    x_min : float
+        Minimum value.
+    x_max : float
+        Maximum value.
+
+    Returns
+    -------
+    y : ArrayLike
+        Smoothstep function values.
+
+    """
+    t = jnp.clip((x - x_min) / (x_max - x_min), 0.0, 1.0)
+    return t * t * (3.0 - 2.0 * t)
 
 
 def blending_weight(t: float, y: ArrayLike, params: Params) -> float:
@@ -35,13 +61,12 @@ def blending_weight(t: float, y: ArrayLike, params: Params) -> float:
     r_rel_moon = y[:3] - moon_position
     r_rel_earth = y[:3]
 
-    p = 2  # fall-off factor
-
-    u1 = MU_EARTH / (jnp.linalg.norm(r_rel_earth) ** p)
-    u2 = MU_MOON / (jnp.linalg.norm(r_rel_moon) ** p)
+    u1 = MU_EARTH / (jnp.linalg.norm(r_rel_earth) ** 2)
+    u2 = MU_MOON / (jnp.linalg.norm(r_rel_moon) ** 2)
 
     b = u1 / (u1 + u2)  # how much to use Earth guidance
 
+    # return smoothstep(b, 0.1, 0.9)  # smooth the transition to avoid discontinuities
     return b
 
 
@@ -125,12 +150,16 @@ def bbq_law(t: float, y: ArrayLike, params: Params) -> tuple[float, float]:
     )
 
     # Moon guidance
+    mee_p_rel_moon = a_mee_to_p_mee(mee_rel_moon)
+    mee_p_tgt_moon = a_mee_to_p_mee(params.y_target)
+
     angles_moon = _q_law_mee(
-        mee_rel_moon,
-        params.y_target,
+        mee_p_rel_moon,
+        mee_p_tgt_moon,
         params,
         params.moon_guidance,
         MU_MOON,
+        Parameterization.P,
     )
 
     # Blend

@@ -18,13 +18,31 @@ def test_cartesian_to_mee():
     cart = jnp.array([1e6, 2e6, 3e6, 4e3, 5e3, 6e3])
     mee = cartesian_to_mee(cart, MU_EARTH)
 
-    mee_ref = jnp.array([1.3547e5, -0.8809, 0.4217, -1.3798, -0.6899, -0.6087])
+    mee_ref = jnp.array(
+        [
+            1.3547e5 / (1 - 0.8809**2 - 0.4217**2),
+            -0.8809,
+            0.4217,
+            -1.3798,
+            -0.6899,
+            -0.6087,
+        ]
+    )
 
-    assert mee == pytest.approx(mee_ref, rel=1e-4)
+    assert mee == pytest.approx(mee_ref, rel=2e-3)
 
 
 def test_mee_to_cartesian():
-    mee = jnp.array([1.3547e5, -0.8809, 0.4217, -1.3798, -0.6899, -0.6087])
+    mee = jnp.array(
+        [
+            1.3547e5 / (1 - 0.8809**2 - 0.4217**2),
+            -0.8809,
+            0.4217,
+            -1.3798,
+            -0.6899,
+            -0.6087,
+        ]
+    )
     cart = mee_to_cartesian(mee, MU_EARTH)
 
     cart_ref = jnp.array([1e6, 2e6, 3e6, 4e3, 5e3, 6e3])

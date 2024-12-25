@@ -174,6 +174,7 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
                 pcoeff=0.3,
                 icoeff=0.4,
                 dcoeff=0,
+                dtmin=10,
             ),
             event=end_event,
             saveat=SaveAt(steps=True),

@@ -11,20 +11,21 @@ sim_case = SimConfig(
     y_target=jnp.array([10000e3, 0, 0, 0, 0]),
     propulsion_model="constant_thrust",
     steering_law="bbq_law",
-    t_span=(0, 86400 * 120),
+    t_span=(0, 86400 * 200),
     conv_tol=0.5,
     earth_w_oe=jnp.array([1, 1, 1, 1, 1]),
     earth_penalty_weight=1,
     earth_penalty_scaling=100,
     earth_rp_min=6400e3,
-    moon_w_oe=jnp.array([10, 1, 1, 5, 5]),
-    moon_penalty_weight=5,
-    moon_penalty_scaling=100,
-    moon_rp_min=2000e3,
+    moon_w_oe=jnp.array([10, 1, 1, 1, 1]),
+    moon_penalty_weight=1,
+    moon_penalty_scaling=10,
+    moon_rp_min=1800e3,
     perturbations=["moon_gravity"],
-    epoch_jd=2451545.0,
+    epoch_jd=2453545.0,
     characteristic_accel=0.001,
 )
 
+# print(single_step_debug(sim_case))
 run_id, t, y = run_mission(sim_case)
 postprocess_run(run_id, t, y, sim_case)

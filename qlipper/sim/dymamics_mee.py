@@ -3,10 +3,8 @@ import jax.numpy as jnp
 from jax.numpy import cos, sin, sqrt
 from jax.typing import ArrayLike
 
-from qlipper.constants import MU_EARTH
 
-
-def gve_coefficients(state: ArrayLike, mu: float) -> tuple[jax.Array, jax.Array]:
+def gve_coefficients_a(state: ArrayLike, mu: float) -> tuple[jax.Array, jax.Array]:
     """
     Gauss variational equation coefficients for
     a-modified equinoctial elements under no additional perturbations.
@@ -72,27 +70,43 @@ def gve_coefficients(state: ArrayLike, mu: float) -> tuple[jax.Array, jax.Array]
     return A, b
 
 
-def gve_mee(state: ArrayLike, acc_lvlh: ArrayLike) -> jax.Array:
-    """
-    Gauss variational equation for modified equinoctial elements.
+def gve_coefficients_p(state: ArrayLike, mu: float) -> tuple[jax.Array, jax.Array]:
+    # unpack state vector
+    p, f, g, h, k, L = state
 
-    Parameters
-    ----------
-    state : ArrayLike
-        State vector in modified equinoctial elements.
-    acc_lvlh : ArrayLike
-        Perturbing acceleration vector in LVLH frame.
+    # shorthand quantities
+    q = 1 + f * cos(L) + g * sin(L)
 
-    Returns
-    -------
-    dstate_dt : jax.Array
-        Time derivative of state vector.
+    leading_coefficient = 1 / q * sqrt(p / mu)
 
-    """
-    # Gauss variational equation coefficients
-    A, b = gve_coefficients(state, MU_EARTH)
+    # A-matrix
+    A = (
+        jnp.array(
+            [
+                [
+                    0,
+                    2 * p,
+                    0,
+                ],
+                [
+                    q * sin(L),
+                    (q + 1) * cos(L) + f,
+                    -g * (h * sin(L) - k * cos(L)),
+                ],
+                [
+                    -q * cos(L),
+                    (q + 1) * sin(L) + g,
+                    f * (h * sin(L) - k * cos(L)),
+                ],
+                [0, 0, cos(L) / 2 * (1 + h**2 + k**2)],
+                [0, 0, sin(L) / 2 * (1 + h**2 + k**2)],
+                [0, 0, h * sin(L) - k * cos(L)],
+            ]
+        )
+        * leading_coefficient
+    )
 
-    # time derivative of state vector
-    dstate_dt = A @ acc_lvlh + b
+    # b-vector
+    b = jnp.array([0, 0, 0, 0, 0, q**2 * sqrt(mu * p) / p**2])
 
-    return dstate_dt
+    return A, b

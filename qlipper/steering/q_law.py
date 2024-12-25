@@ -1,17 +1,20 @@
-from typing import Callable
+from enum import IntEnum
 
 import jax
 import jax.numpy as jnp
-from jax import Array
-from jax.lax import cond
 from jax.typing import ArrayLike
 
 from qlipper.constants import MU_EARTH, R_EARTH
-from qlipper.converters import cartesian_to_mee, delta_angle_mod
-from qlipper.sim.dymamics_mee import gve_coefficients
+from qlipper.converters import cartesian_to_mee, delta_angle_mod, p_mee_to_a_mee
+from qlipper.sim.dymamics_mee import gve_coefficients_a, gve_coefficients_p
 from qlipper.sim.params import GuidanceParams, Params
-from qlipper.steering.estimation import d_oe_xx
+from qlipper.steering.estimation import d_oe_xx_mee_a, d_oe_xx_mee_p
 from qlipper.steering.penalty import periapsis_penalty
+
+
+class Parameterization(IntEnum):
+    P = 0
+    A = 1
 
 
 def _q_law_mee(
@@ -20,6 +23,7 @@ def _q_law_mee(
     params: Params,
     guidance_params: GuidanceParams,
     mu: float,
+    parameterization: Parameterization,
 ) -> tuple[float, float]:
     """
     Q-Law, as formulated by Varga and Perez (2016)
@@ -45,7 +49,9 @@ def _q_law_mee(
         Steering angle.
     """
 
-    u_lgv = mee_lgv_control(y_mee, target, params, guidance_params, mu)
+    u_lgv = mee_lgv_control(
+        y_mee, target, params, guidance_params, mu, parameterization
+    )
 
     alpha = jnp.atan2(u_lgv[0], u_lgv[1])
     beta = jnp.atan2(u_lgv[2], jnp.linalg.norm(u_lgv[:2]))
@@ -86,15 +92,18 @@ def q_law(
 
     y_mee = cartesian_to_mee(y, MU_EARTH)
 
-    return _q_law_mee(y_mee, target, w_oe, params.characteristic_accel, MU_EARTH)
+    return _q_law_mee(
+        y_mee, target, w_oe, params.characteristic_accel, MU_EARTH, Parameterization.A
+    )
 
 
-def weighting(
+def weighting_mee(
     state: ArrayLike,
     target: ArrayLike,
     params: Params,
     guidance_params: GuidanceParams,
     mu: float,
+    parameterization: Parameterization,
 ) -> jax.Array:
     """
     Weighting matrix used for LgV control.
@@ -107,11 +116,19 @@ def weighting(
 
     max_accel = params.characteristic_accel
 
-    oe_d_max = d_oe_xx(state, mu, max_accel)
+    oe_d_max = jax.lax.cond(
+        parameterization == Parameterization.A,
+        d_oe_xx_mee_a,
+        d_oe_xx_mee_p,
+        state,
+        mu,
+        max_accel,
+    )
 
     # construct weight matrix
     s_a = jnp.sqrt(1 + ((jnp.abs(state[0]) - target[0]) / (3 * target[0])) ** 4)
     scaling = jnp.array([s_a, 1, 1, 1, 1])
+
     return scaling * w_oe / oe_d_max**2
 
 
@@ -121,6 +138,7 @@ def q_vector(
     params: Params,
     guidance_params: GuidanceParams,
     mu: float,
+    parameterization: Parameterization,
 ) -> jax.Array:
     """
     LgV control of the form:
@@ -130,13 +148,19 @@ def q_vector(
     and u = -A^T W dI.
     """
     # stabilization terms
-    W = weighting(state, target, params, guidance_params, mu)
+    W = weighting_mee(state, target, params, guidance_params, mu, parameterization)
     dI = state[:5] - target[:5]
 
     # penalty terms
     w_P = guidance_params.penalty_weight
-    P = periapsis_penalty(state, guidance_params)
-    grad_P = jax.grad(periapsis_penalty)(state, guidance_params)[:5]
+
+    # modify state to be a-based if needed
+    state_pen = jax.lax.cond(
+        parameterization == Parameterization.A, lambda x: x, p_mee_to_a_mee, state
+    )
+
+    P = periapsis_penalty(state_pen, guidance_params)
+    grad_P = jax.grad(periapsis_penalty)(state_pen, guidance_params)[:5]
     V = 1 / 2 * dI.T @ (W * dI)
 
     return (1 + w_P * P) * W * dI + w_P * V * grad_P
@@ -148,6 +172,7 @@ def mee_lgv_control(
     params: Params,
     guidance_params: GuidanceParams,
     mu: float,
+    parameterization: Parameterization,
 ) -> jax.Array:
     """
     Five-element direct L_g V control for MEEs.
@@ -169,9 +194,15 @@ def mee_lgv_control(
         LVLH thrust vector achieving the desired control.
 
     """
-    A, _ = gve_coefficients(state, mu)
+    A = jax.lax.cond(
+        parameterization == Parameterization.A,
+        gve_coefficients_a,
+        gve_coefficients_p,
+        state,
+        mu,
+    )[0]
     A = A[:5, :]  # only need the first 5 rows
-    q = q_vector(state, target, params, guidance_params, mu)
+    q = q_vector(state, target, params, guidance_params, mu, parameterization)
 
     return -A.T @ q
 
@@ -199,7 +230,7 @@ def _rq_law_mee(
 
     dL = delta_angle_mod(chaser[5], target[5])
 
-    gains = [0.7, 1]
+    gains = [0.1, 1]
 
     ecc = jnp.sqrt(chaser[1] ** 2 + chaser[2] ** 2)
     trig_term = jnp.arctan(gains[1] * dL)
@@ -209,4 +240,11 @@ def _rq_law_mee(
 
     target = target.at[0].set(new_a_t)
 
-    return _q_law_mee(chaser, target, params, guidance_params, mu)
+    return _q_law_mee(
+        chaser,
+        target,
+        params,
+        guidance_params,
+        mu,
+        Parameterization.A,
+    )

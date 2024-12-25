@@ -13,6 +13,8 @@ from qlipper.converters import batch_mee_to_cartesian
 from qlipper.postprocess.plot_cart import plot_cart_wrt_moon, plot_trajectory_cart
 from qlipper.postprocess.plot_mee import plot_elements_mee, plot_trajectory_mee
 
+# from qlipper.postprocess.plot_extra import
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,15 +47,18 @@ def postprocess_run(
     # convert mee to cartesian
     y_cart = batch_mee_to_cartesian(y, MU_EARTH)
 
-    plot_trajectory_mee(
-        t, y, cfg, save_path=plot_save_dir / "trajectory.pdf", show=show_plots
+    # plot_trajectory_mee(
+    #     t, y, cfg, save_path=plot_save_dir / "trajectory.pdf", show=show_plots
+    # )
+    plot_trajectory_cart(
+        t, y_cart, cfg, save_path=plot_save_dir / "trajectory.pdf", show=show_plots
     )
 
     plot_elements_mee(
         t, y, cfg, save_path=plot_save_dir / "elements.pdf", show=show_plots
     )
 
-    if cfg.steering_law in ["bbq_law", "qbbq_law"]:
+    if cfg.steering_law == "bbq_law":
         plot_cart_wrt_moon(
             t,
             y_cart,

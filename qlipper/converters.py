@@ -306,3 +306,25 @@ def delta_angle_mod(a: float, b: float) -> float:
 
     """
     return ((a - b + jnp.pi) % (2 * jnp.pi)) - jnp.pi
+
+
+def a_mee_to_p_mee(y_mee: ArrayLike) -> jax.Array:
+    """
+    Converts a-based MEE to p-based MEE.
+    """
+    a = y_mee[0]
+    f = y_mee[1]
+    g = y_mee[2]
+    p = a * (1 - f**2 - g**2)
+    return y_mee.at[0].set(p)
+
+
+def p_mee_to_a_mee(y_mee: ArrayLike) -> jax.Array:
+    """
+    Converts p-based MEE to a-based MEE.
+    """
+    p = y_mee[0]
+    f = y_mee[1]
+    g = y_mee[2]
+    a = p / (1 - f**2 - g**2)
+    return y_mee.at[0].set(a)
