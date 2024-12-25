@@ -8,11 +8,11 @@ from qlipper.run.mission_runner import run_mission
 sim_case = SimConfig(
     name="lunar",
     y0=jnp.array([100000e3, 0, 0, 0, 0, 0]),
-    y_target=jnp.array([20000e3, 0, 0, 0, 0]),
+    y_target=jnp.array([8000e3, 0, 0, 0, 0]),
     propulsion_model="constant_thrust",
     steering_law="bbq_law",
     t_span=(0, 86400 * 200),
-    conv_tol=0.2,
+    conv_tol=0.5,
     earth_w_oe=jnp.array([1, 1, 1, 1, 1]),
     earth_penalty_weight=1,
     earth_penalty_scaling=100,

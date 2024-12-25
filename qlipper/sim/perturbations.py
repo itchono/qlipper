@@ -1,7 +1,6 @@
 import jax
 
 from qlipper.constants import MU_MOON, MU_SUN
-from qlipper.converters import rot_lvlh_inertial
 from qlipper.sim.params import Params
 
 
@@ -30,9 +29,7 @@ def moon_gravity(t: float, y: jax.Array, params: Params) -> jax.Array:
     r = y[:3] - moon_position_i
 
     acc_i = -MU_MOON * r / jax.numpy.linalg.norm(r) ** 3
-    C_OI = rot_lvlh_inertial(y)
-
-    return C_OI @ acc_i
+    return acc_i
 
 
 def sun_gravity(t: float, y: jax.Array, params: Params) -> jax.Array:
@@ -67,9 +64,7 @@ def sun_gravity(t: float, y: jax.Array, params: Params) -> jax.Array:
         (r_sun - r) / jax.numpy.linalg.norm(r_sun - r) ** 3
         - r_sun / jax.numpy.linalg.norm(r_sun) ** 3
     )
-    C_OI = rot_lvlh_inertial(y)
-
-    return C_OI @ acc_i
+    return acc_i
 
 
 def j2(t: float, y: jax.Array, params: Params) -> jax.Array:

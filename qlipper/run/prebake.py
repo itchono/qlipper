@@ -31,7 +31,9 @@ def prebake_sim_config(cfg: SimConfig) -> Params:
     moon = lookup_body_id("moon")
 
     # Heuristic: 300 samples per year
-    num_ephem_samples = max(int((cfg.t_span[1] - cfg.t_span[0]) / 86400 / 365 * 300), 2)
+    num_ephem_samples = max(
+        int((cfg.t_span[1] - cfg.t_span[0]) / 86400 / 365 * 3000), 2
+    )
 
     # TODO: only generate ephem interpolants for the bodies that are actually used
 

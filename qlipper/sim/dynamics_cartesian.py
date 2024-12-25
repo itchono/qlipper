@@ -54,13 +54,13 @@ def dyn_cartesian(
     # Acceleration from propulsion (LVLH frame)
     acc_lvlh = propulsion_model(t, y, params, alpha, beta)
 
-    # Perturbations
-    for perturbation in perturbations:
-        acc_lvlh += perturbation(t, y, params)
-
-    # Newton's Second Law
     acc_inertial = rot_inertial_lvlh(y) @ acc_lvlh
 
+    # Perturbations
+    for perturbation in perturbations:
+        acc_inertial += perturbation(t, y, params)
+
+    # Newton's Second Law
     acc_gravity = -MU_EARTH * y[:3] / jnp.linalg.norm(y[:3]) ** 3
 
     dydt = jnp.concatenate([y[3:], acc_inertial + acc_gravity])
