@@ -1,4 +1,5 @@
 import logging
+from dataclasses import replace
 from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
@@ -84,7 +85,7 @@ def final_error(yf: Array, tf: Array, cfg: SimConfig, params: Params) -> float:
     return l2_loss(yf, params.y_target)
 
 
-def extract_solution_arrays(sol: Solution, cfg: SimConfig) -> tuple[Array, Array]:
+def extract_solution_arrays(sol: Solution) -> tuple[Array, Array]:
     """
     Extract the state and time arrays from a solution.
 
@@ -92,8 +93,6 @@ def extract_solution_arrays(sol: Solution, cfg: SimConfig) -> tuple[Array, Array
     ----------
     sol : Solution
         Solution object from diffeqsolve.
-    cfg : SimConfig
-        Simulation configuration.
 
     Returns
     -------
@@ -111,7 +110,7 @@ def extract_solution_arrays(sol: Solution, cfg: SimConfig) -> tuple[Array, Array
     return sol_t, sol_y
 
 
-def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
+def run_mission(cfg: SimConfig, *, overrun: bool = False) -> tuple[str, Array, Array]:
     """
     Run a qlipper simulation.
 
@@ -167,14 +166,13 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
             y0=y0,
             dt0=1e2,
             args=ode_args,
-            max_steps=int(2e6),
+            max_steps=int(5e5),
             stepsize_controller=PIDController(
                 rtol=1e-6,
                 atol=1e-8,
                 pcoeff=0.3,
                 icoeff=0.4,
                 dcoeff=0,
-                dtmin=10,
             ),
             event=end_event,
             saveat=SaveAt(steps=True),
@@ -182,7 +180,7 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
         )
 
         # postprocessing
-        sol_t, sol_y = extract_solution_arrays(solution, cfg)
+        sol_t, sol_y = extract_solution_arrays(solution)
 
         # Post-run
         match solution.result:
@@ -204,6 +202,51 @@ def run_mission(cfg: SimConfig) -> tuple[str, Array, Array]:
         run_duration = run_end - run_start
         logger.info(f"Completed in {run_duration}")
         logger.info(f"Steps: {solution.stats['num_steps']}")
+
+        if overrun:
+            logger.info("Propagating a little bit more with no thrust...")
+
+            # recalculate timespan
+            t_span = (sol_t[-1], sol_t[-1] + 86400 * 2)
+            # rebuild ephemeris
+            overrun_args = prebake_sim_config(
+                replace(
+                    cfg,
+                    t_span=t_span,
+                    conv_tol=cfg.conv_tol / 10,
+                    propulsion_model="no_thrust",
+                )
+            )
+
+            # replace ephemeris with the old one
+            overrun_args = overrun_args._replace(moon_ephem=ode_args.moon_ephem)
+
+            # simulate
+            second_solution = diffeqsolve(
+                term,
+                Tsit5(),
+                *t_span,
+                y0=mee_to_cartesian(sol_y[-1], MU_EARTH) / CARTESIAN_DYN_SCALING,
+                dt0=1e2,
+                args=overrun_args,
+                max_steps=int(5e5),
+                stepsize_controller=PIDController(
+                    rtol=1e-6,
+                    atol=1e-8,
+                    pcoeff=0.3,
+                    icoeff=0.4,
+                    dcoeff=0,
+                ),
+                event=end_event,
+                saveat=SaveAt(steps=True),
+                throw=False,
+            )
+
+            sol_t_2, sol_y_2 = extract_solution_arrays(second_solution)
+
+            # concatenate the two solutions
+            sol_t = jnp.concatenate([sol_t, sol_t_2])
+            sol_y = jnp.concatenate([sol_y, sol_y_2], axis=0)
 
         # Post-run saving of results
         with open(mission_dir / "vars.npz", "wb") as f:

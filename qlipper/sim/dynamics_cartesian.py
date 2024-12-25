@@ -21,7 +21,7 @@ def dyn_cartesian(
     perturbations: list[Callable[[float, Array, Params], Array]],
 ) -> Array:
     """
-    Top level dynamics function for Carteisan state
+    Top level dynamics function for Cartsian state
 
     Parameters
     ----------

@@ -1,27 +1,24 @@
-from pathlib import Path
 from typing import Any
 
 import jax
 import numpy as np
 from jax.typing import ArrayLike
 from matplotlib import pyplot as plt
+from matplotlib.ticker import FuncFormatter
 from mpl_toolkits.mplot3d import Axes3D
 
 from qlipper.configuration import SimConfig
 from qlipper.constants import R_EARTH, R_MOON
 from qlipper.postprocess.plotting_utils import plot_sphere
-from qlipper.run.prebake import prebake_sim_config
-from qlipper.sim.ephemeris import generate_ephem_arrays, lookup_body_id
+from qlipper.sim.params import Params
 
 
 def plot_trajectory_cart(
     t: ArrayLike,
     y: ArrayLike,
     cfg: SimConfig,
+    params: Params,
     plot_kwargs: dict[str, Any] = {},
-    save_path: Path | None = None,
-    save_kwargs: dict[str, Any] = {},
-    show: bool = False,
 ) -> None:
     """
     Plots full 3D trajectory from cartesian states.
@@ -83,19 +80,12 @@ def plot_trajectory_cart(
     # plot the moon, if applicable (in future: generalize)
     if "moon_gravity" in cfg.perturbations:
         # moon ephemeris
-        _, y = generate_ephem_arrays(
-            lookup_body_id("earth"),
-            lookup_body_id("moon"),
-            cfg.epoch_jd,
-            (0, cfg.t_span[-1]),
-            1000,
-        )
-        y = y * 1e3  # convert from km to m
+        y = jax.vmap(params.moon_ephem.evaluate)(t)
 
         ax.plot(
-            y[0, :],
-            y[1, :],
-            y[2, :],
+            y[:, 0],
+            y[:, 1],
+            y[:, 2],
             label="Moon",
             color="gray",
             linestyle="--",
@@ -106,25 +96,28 @@ def plot_trajectory_cart(
     # equal aspect ratio
     ax.set_aspect("equal")
 
-    if save_path is not None:
-        fig.savefig(save_path, **save_kwargs)
+    t_start = t[0]
+    t_end = t[-1]
+    t_span = t_end - t_start
 
-    if show:
-        plt.show()
+    fig.colorbar(
+        plt.cm.ScalarMappable(cmap=cm),
+        ax=ax,
+        label="MET [d]",
+        format=FuncFormatter(lambda x, _: f"{((t_start + x*t_span)/86400):.0f}"),
+        location="bottom",
+    )
 
 
 def plot_cart_wrt_moon(
     t: ArrayLike,
     y: ArrayLike,
     cfg: SimConfig,
+    params: Params,
     plot_kwargs: dict[str, Any] = {},
-    save_path: Path | None = None,
-    save_kwargs: dict[str, Any] = {},
-    show: bool = False,
 ) -> None:
     # convert to moon inertial coordinates
     # moon ephemeris
-    params = prebake_sim_config(cfg)
     moon_state = jax.vmap(params.moon_ephem.evaluate)(t)
     y = y - moon_state
 
@@ -168,8 +161,14 @@ def plot_cart_wrt_moon(
     # equal aspect ratio
     ax.set_aspect("equal")
 
-    if save_path is not None:
-        fig.savefig(save_path, **save_kwargs)
+    t_start = t[0]
+    t_end = t[-1]
+    t_span = t_end - t_start
 
-    if show:
-        plt.show()
+    fig.colorbar(
+        plt.cm.ScalarMappable(cmap=cm),
+        ax=ax,
+        label="MET [d]",
+        format=FuncFormatter(lambda x, _: f"{((t_start + x*t_span)/86400):.1f}"),
+        location="bottom",
+    )

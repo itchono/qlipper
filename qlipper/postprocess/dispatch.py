@@ -11,11 +11,19 @@ from qlipper.configuration import SimConfig
 from qlipper.constants import MU_EARTH, OUTPUT_DIR
 from qlipper.converters import batch_mee_to_cartesian
 from qlipper.postprocess.plot_cart import plot_cart_wrt_moon, plot_trajectory_cart
-from qlipper.postprocess.plot_mee import plot_elements_mee, plot_trajectory_mee
-
-# from qlipper.postprocess.plot_extra import
+from qlipper.postprocess.plot_extra import plot_blending_weight
+from qlipper.postprocess.plot_mee import plot_elements_mee
+from qlipper.run.prebake import prebake_sim_config
+from qlipper.sim.params import Params
 
 logger = logging.getLogger(__name__)
+
+
+def distance_rel_moon(t, y: ArrayLike, params: Params) -> float:
+    moon_position = params.moon_ephem.evaluate(t)[:3]
+
+    r_rel_moon = y[:3] - moon_position
+    return r_rel_moon
 
 
 def postprocess_run(
@@ -47,43 +55,64 @@ def postprocess_run(
     # convert mee to cartesian
     y_cart = batch_mee_to_cartesian(y, MU_EARTH)
 
-    # plot_trajectory_mee(
-    #     t, y, cfg, save_path=plot_save_dir / "trajectory.pdf", show=show_plots
-    # )
-    plot_trajectory_cart(
-        t, y_cart, cfg, save_path=plot_save_dir / "trajectory.pdf", show=show_plots
-    )
+    # generate params from cfg
+    params = prebake_sim_config(cfg)
 
-    plot_elements_mee(
-        t, y, cfg, save_path=plot_save_dir / "elements.pdf", show=show_plots
-    )
+    plot_trajectory_cart(t, y_cart, cfg, params)
+    plt.savefig(plot_save_dir / "trajectory.pdf")
+
+    plot_elements_mee(t, y, cfg, params)
+    plt.savefig(plot_save_dir / "elements.pdf")
 
     if cfg.steering_law == "bbq_law":
+        dist_rel_moon = jax.vmap(distance_rel_moon, in_axes=(0, 0, None))(
+            t, y_cart, params
+        )
+        dist_rel_moon = jnp.linalg.norm(dist_rel_moon, axis=1)
+
+        # find when the spacecraft is close to the moon (i.e. last point where dist < 1000 km)
+        idx_close = np.where(dist_rel_moon > 60000e3)[0][-1]
+        print(idx_close)
+
+        plot_elements_mee(
+            t,
+            y,
+            cfg,
+            params,
+            wrt_moon=True,
+        )
+        plt.savefig(plot_save_dir / "elements_wrt_moon.pdf")
+
         plot_cart_wrt_moon(
             t,
             y_cart,
             cfg,
-            save_path=plot_save_dir / "trajectory_moon.pdf",
-            show=show_plots,
+            params,
         )
-        CLOSE_FRAC = 0.005
+        plt.savefig(plot_save_dir / "trajectory_moon.pdf")
 
         plot_cart_wrt_moon(
-            t[-int(len(t) * CLOSE_FRAC) :],
-            y_cart[-int(len(t) * CLOSE_FRAC) :, :],
+            t[idx_close:],
+            y_cart[idx_close:, :],
             cfg,
-            save_path=plot_save_dir / "trajectory_moon_close.pdf",
-            show=show_plots,
+            params,
         )
+        plt.savefig(plot_save_dir / "trajectory_moon_close.pdf")
 
         plot_elements_mee(
-            t[-int(len(t) * CLOSE_FRAC) :],
-            y[-int(len(t) * CLOSE_FRAC) :, :],
+            t[idx_close:],
+            y[idx_close:, :],
             cfg,
-            save_path=plot_save_dir / "elements_close.pdf",
-            show=show_plots,
+            params,
+            wrt_moon=True,
         )
+        plt.savefig(plot_save_dir / "elements_wrt_moon_close.pdf")
 
+        plot_blending_weight(t, y_cart, dist_rel_moon, params)
+        plt.savefig(plot_save_dir / "blending_weight.pdf")
+
+    if show_plots:
+        plt.show()
     logger.info(f"Postprocessing complete for run: {run_id}")
 
 

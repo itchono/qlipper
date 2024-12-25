@@ -126,7 +126,7 @@ def weighting_mee(
     )
 
     # construct weight matrix
-    s_a = jnp.sqrt(1 + ((jnp.abs(state[0]) - target[0]) / (3 * target[0])) ** 4)
+    s_a = jnp.sqrt(1 + ((jnp.abs(state[0]) - target[0]) / (3 * target[0])) ** 8)
     scaling = jnp.array([s_a, 1, 1, 1, 1])
 
     return scaling * w_oe / oe_d_max**2
@@ -230,7 +230,7 @@ def _rq_law_mee(
 
     dL = delta_angle_mod(chaser[5], target[5])
 
-    gains = [0.1, 1]
+    gains = [0.5, 1]
 
     ecc = jnp.sqrt(chaser[1] ** 2 + chaser[2] ** 2)
     trig_term = jnp.arctan(gains[1] * dL)

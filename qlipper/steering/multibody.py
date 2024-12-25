@@ -9,8 +9,7 @@ from qlipper.converters import (
     lvlh_to_steering,
     steering_to_lvlh,
 )
-from qlipper.run.prebake import Params
-from qlipper.steering.estimation import d_oe_xx_mee_p
+from qlipper.sim.params import Params
 from qlipper.steering.q_law import Parameterization, _q_law_mee, _rq_law_mee
 
 
@@ -66,8 +65,8 @@ def blending_weight(t: float, y: ArrayLike, params: Params) -> float:
 
     b = u1 / (u1 + u2)  # how much to use Earth guidance
 
-    # return smoothstep(b, 0.1, 0.9)  # smooth the transition to avoid discontinuities
-    return b
+    return smoothstep(b, 0.6, 0.9)  # force control over to moon guidance earlier etc.
+    # return b
 
 
 @jax.jit
