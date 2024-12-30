@@ -7,6 +7,7 @@ from qlipper.converters import (
     a_mee_to_p_mee,
     cartesian_to_mee,
     lvlh_to_steering,
+    rot_lvlh_moonlvlh,
     steering_to_lvlh,
 )
 from qlipper.sim.params import Params
@@ -171,8 +172,9 @@ def bbq_law(t: float, y: ArrayLike, params: Params) -> tuple[float, float]:
     )
 
     # Blend
+    C_OM = rot_lvlh_moonlvlh(y, moon_state)
     n_earth = steering_to_lvlh(*angles_earth)
-    n_moon = steering_to_lvlh(*angles_moon)
+    n_moon = C_OM @ steering_to_lvlh(*angles_moon)
 
     b = blending_weight(t, y, params)  # 0 = Moon, 1 = Earth
 

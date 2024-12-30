@@ -284,6 +284,77 @@ def rot_lvlh_inertial(cart: ArrayLike) -> jax.Array:
     return rot_inertial_lvlh(cart).T
 
 
+def rot_inertial_moonlvlh(y: ArrayLike, moon_state: ArrayLike) -> jax.Array:
+    """
+    Generates the rotation matrix C_IO rotating vectors from the moon-lvlh frame
+    to the inertial frame. i.e. v_I = C_IO @ v_O
+
+    Parameters
+    ----------
+    y : ArrayLike
+        Cartesian State vector [m, m/s] relative to Earth
+    moon_state : ArrayLike
+        Cartesian State vector of the moon [m, m/s]
+
+    Returns
+    -------
+    C_IO : Array
+        Rotation matrix from Moon-LVLH to Inertial frame
+    """
+    pos = y[:3] - moon_state[:3]
+    vel = y[3:] - moon_state[3:]
+
+    pos_unit = pos / jnp.linalg.norm(pos)
+    vel_unit = vel / jnp.linalg.norm(vel)
+
+    h = jnp.cross(pos_unit, vel_unit)
+    h_normed = h / jnp.linalg.norm(h)
+
+    return jnp.column_stack((pos_unit, jnp.cross(h_normed, pos_unit), h_normed))
+
+
+def rot_moonlvlh_inertial(cart: ArrayLike, moon_state: ArrayLike) -> jax.Array:
+    """
+    Generates the rotation matrix C_OI rotating vectors from the inertial frame
+    to the moon-lvlh frame. i.e. v_O = C_OI @ v_I
+
+    Parameters
+    ----------
+    cart : ArrayLike
+        Cartesian State vector [m, m/s]
+    moon_state : ArrayLike
+        Cartesian State vector of the moon [m, m/s]
+
+    Returns
+    -------
+    C_OI : Array
+        Rotation matrix from Inertial to Moon-LVLH frame
+    """
+
+    return rot_inertial_moonlvlh(cart, moon_state).T
+
+
+def rot_lvlh_moonlvlh(y: ArrayLike, moon_state: ArrayLike) -> jax.Array:
+    """
+    Generates the rotation matrix C_IM rotating vectors from the moon-lvlh frame
+    to the lvlh frame. i.e. v_I = C_IM @ v_M
+
+    Parameters
+    ----------
+    y : ArrayLike
+        Cartesian State vector [m, m/s] relative to Earth
+    moon_state : ArrayLike
+        Cartesian State vector of the moon [m, m/s]
+
+    Returns
+    -------
+    C_OI : Array
+        Rotation matrix from Moon-LVLH to LVLH frame
+    """
+
+    return rot_lvlh_inertial(y) @ rot_inertial_moonlvlh(y, moon_state)
+
+
 @jax.jit
 def delta_angle_mod(a: float, b: float) -> float:
     """

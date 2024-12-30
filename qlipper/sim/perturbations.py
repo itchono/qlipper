@@ -28,7 +28,10 @@ def moon_gravity(t: float, y: jax.Array, params: Params) -> jax.Array:
 
     r = y[:3] - moon_position_i
 
-    acc_i = -MU_MOON * r / jax.numpy.linalg.norm(r) ** 3
+    acc_i = (
+        -MU_MOON * r / jax.numpy.linalg.norm(r) ** 3
+        - MU_MOON * moon_position_i / jax.numpy.linalg.norm(moon_position_i) ** 3
+    )
     return acc_i
 
 
