@@ -54,11 +54,30 @@ def plot_trajectory_cart(
         plot_kwargs={"color": (0.3010, 0.7450, 0.9330), "alpha": 0.6},
     )
 
+    # cut data
+    # y = y[t < 86400 * 41.8]
+    # t = t[t < 86400 * 41.8]
+
     t, y = interpolate_time(t, y, len(y))
 
     # split the trajectory into segments based on L
     NUM_SEGMENTS = 50
     idx_breakpoints = np.linspace(0, len(y), NUM_SEGMENTS + 1, dtype=int)
+
+    # plot the moon, if applicable (in future: generalize)
+    if "moon_gravity" in cfg.perturbations:
+        # moon ephemeris
+        y_moon = jax.vmap(params.moon_ephem.evaluate)(t)
+
+        ax.plot(
+            y_moon[:, 0],
+            y_moon[:, 1],
+            y_moon[:, 2],
+            label="Moon",
+            color="k",
+            alpha=0.7,
+            linewidth=0.5,
+        )
 
     cm = plt.get_cmap("turbo")
 
@@ -79,25 +98,21 @@ def plot_trajectory_cart(
     ax.set_xlabel("X [m]")
     ax.set_ylabel("Y [m]")
     ax.set_zlabel("Z [m]")
+    # set zlims so that ticks are visible
+    ax.set_zlim(-2e8, 2e8)
 
-    # plot the moon, if applicable (in future: generalize)
-    if "moon_gravity" in cfg.perturbations:
-        # moon ephemeris
-        y = jax.vmap(params.moon_ephem.evaluate)(t)
-
-        ax.plot(
-            y[:, 0],
-            y[:, 1],
-            y[:, 2],
-            label="Moon",
-            color="gray",
-            linestyle="--",
-            alpha=0.2,
-        )
+    # enforce axis size by making datalim adjustable
+    ax.set_adjustable("datalim")
 
     ax.set_title("Earth Inertial Coordinates")
     # equal aspect ratio
     ax.set_aspect("equal")
+    # ax.grid(False)
+
+    # remove pane fill
+    ax.xaxis.pane.fill = False
+    ax.yaxis.pane.fill = False
+    ax.zaxis.pane.fill = False
 
     t_start = t[0]
     t_end = t[-1]
@@ -107,7 +122,7 @@ def plot_trajectory_cart(
         plt.cm.ScalarMappable(cmap=cm),
         ax=ax,
         label="MET [d]",
-        format=FuncFormatter(lambda x, _: f"{((t_start + x*t_span)/86400):.0f}"),
+        format=FuncFormatter(lambda x, _: f"{((t_start + x*t_span)/86400):.1f}"),
         location="bottom",
     )
 
@@ -163,10 +178,18 @@ def plot_cart_wrt_moon(
     ax.set_xlabel("X [m]")
     ax.set_ylabel("Y [m]")
     ax.set_zlabel("Z [m]")
+    # enforce axis size by making datalim adjustable
+    ax.set_adjustable("datalim")
 
     ax.set_title("Moon Inertial Coordinates")
     # equal aspect ratio
     ax.set_aspect("equal")
+    # ax.grid(False)
+
+    # remove pane fill
+    ax.xaxis.pane.fill = False
+    ax.yaxis.pane.fill = False
+    ax.zaxis.pane.fill = False
 
     t_start = t[0]
     t_end = t[-1]

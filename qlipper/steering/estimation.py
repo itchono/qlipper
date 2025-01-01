@@ -81,6 +81,7 @@ def d_oe_xx_mee_a(state: ArrayLike, mu: float, max_accel: float) -> jax.Array:
 
     # h and k are analytical
     s_squared = 1 + h**2 + k**2
+    # extra factor of 1/2 (mistake)
     h_dot_max = 1 / 2 * jnp.sqrt(p / mu) * s_squared / (2 * q)
     k_dot_max = 1 / 2 * jnp.sqrt(p / mu) * s_squared / (2 * q)
 

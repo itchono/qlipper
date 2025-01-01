@@ -121,7 +121,7 @@ def postprocess_run(
         )
         plt.savefig(plot_save_dir / "elements_wrt_moon_close.pdf")
 
-        plot_blending_weight(t, y_cart, dist_rel_moon, params)
+        plot_blending_weight(t, y_cart, dist_rel_moon, params, cfg)
         plt.savefig(plot_save_dir / "blending_weight.pdf")
     else:
         plot_trajectory_cart(t, y_cart, cfg, params)

@@ -77,6 +77,7 @@ def plot_elements_mee(
     axs[0].plot(tof_days, y_target[:, 0], color="C0", linestyle="--", label="_")
     axs[0].legend()
     axs[0].grid()
+    axs[0].set_adjustable("datalim")
 
     axs[1].plot(tof_days, y[:, 1], label="f", color="C1")
     axs[1].plot(tof_days, y_target[:, 1], color="C1", linestyle="--", label="_")
@@ -84,6 +85,7 @@ def plot_elements_mee(
     axs[1].plot(tof_days, y_target[:, 2], color="C2", linestyle="--", label="_")
     axs[1].legend()
     axs[1].grid()
+    axs[1].set_adjustable("datalim")
 
     axs[2].plot(tof_days, y[:, 3], label="h", color="C3")
     axs[2].plot(tof_days, y_target[:, 3], color="C3", linestyle="--", label="_")
@@ -91,12 +93,13 @@ def plot_elements_mee(
     axs[2].plot(tof_days, y_target[:, 4], color="C4", linestyle="--", label="_")
     axs[2].legend()
     axs[2].grid()
+    axs[2].set_adjustable("datalim")
 
     # ticks and spines
     axs[2].set_xlabel(f"Time (days after JD {cfg.epoch_jd:.2f})")
 
     titlestr = "Modified Equinoctial Elements" + (
-        " (wrt Moon)" if wrt_moon else " (wrt Earth)"
+        " (Selenocentric)" if wrt_moon else " (Geocentric)"
     )
 
     fig.suptitle(titlestr)
